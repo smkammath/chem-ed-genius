@@ -7,9 +7,9 @@ window.addEventListener("DOMContentLoaded", () => {
 
   const BACKEND_URL = "https://chem-ed-genius.onrender.com/api/chat";
 
-  function renderLatex(element) {
+  function renderMath() {
     if (window.renderMathInElement) {
-      renderMathInElement(element, {
+      renderMathInElement(document.body, {
         delimiters: [
           { left: "$$", right: "$$", display: true },
           { left: "$", right: "$", display: false },
@@ -27,7 +27,7 @@ window.addEventListener("DOMContentLoaded", () => {
     `;
     conversationDiv.appendChild(msgDiv);
     conversationDiv.scrollTop = conversationDiv.scrollHeight;
-    renderLatex(msgDiv);
+    renderMath();
   }
 
   chatForm.addEventListener("submit", async (e) => {
@@ -41,7 +41,7 @@ window.addEventListener("DOMContentLoaded", () => {
     const loadingMsg = document.createElement("div");
     loadingMsg.classList.add("msg");
     loadingMsg.innerHTML =
-      "<div class='meta'><b>Chem-Ed Genius:</b></div><div class='body'>🧪 Processing your chemistry question...</div>";
+      "<div class='meta'><b>Chem-Ed Genius:</b></div><div class='body'>🧪 Balancing your chemical equation...</div>";
     conversationDiv.appendChild(loadingMsg);
     conversationDiv.scrollTop = conversationDiv.scrollHeight;
 
@@ -59,7 +59,12 @@ window.addEventListener("DOMContentLoaded", () => {
       const data = await res.json();
       loadingMsg.remove();
 
-      addMessage("Chem-Ed Genius", data.message || "⚠️ No response received.");
+      if (!data.message) {
+        addMessage("Chem-Ed Genius", "⚠️ No response received.");
+        return;
+      }
+
+      addMessage("Chem-Ed Genius", data.message);
     } catch (err) {
       console.error(err);
       loadingMsg.remove();
