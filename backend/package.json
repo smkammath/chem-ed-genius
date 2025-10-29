@@ -1,7 +1,7 @@
 {
   "name": "chem-ed-genius-backend",
   "version": "1.0.0",
-  "description": "Backend for Chem-Ed Genius AI Chemistry Tutor",
+  "description": "Backend for Chem-Ed Genius Bot",
   "type": "module",
   "main": "server.js",
   "scripts": {
@@ -10,8 +10,8 @@
   "dependencies": {
     "express": "^4.19.2",
     "cors": "^2.8.5",
-    "body-parser": "^1.20.2",
-    "dotenv": "^16.4.5",
-    "openai": "^4.54.1"
+    "body-parser": "^1.20.3",
+    "openai": "^4.56.0",
+    "express-rate-limit": "^7.3.0"
   }
 }
