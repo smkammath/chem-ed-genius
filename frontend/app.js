@@ -1,70 +1,126 @@
-// CHEM-ED GENIUS frontend
-const conversation = document.getElementById('conversation');
-const form = document.getElementById('promptForm');
-const promptEl = document.getElementById('prompt');
-const apiUrlEl = document.getElementById('apiUrl');
-const gradeEl = document.getElementById('grade');
-const modeEl = document.getElementById('mode');
-const tpl = document.getElementById('msgTpl');
+// ========================================
+//  CHEM-ED GENIUS FRONTEND LOGIC ⚗️
+//  Updated: Auto-connect to backend URL
+//  Author: Madhu (smkammath)
+// ========================================
 
-function addMessage(author, meta, bodyHTML, attachmentsHTML, summaryHTML) {
-  const node = tpl.content.cloneNode(true);
-  node.querySelector('.meta').textContent = `${author} · ${meta}`;
-  node.querySelector('.body').innerHTML = bodyHTML;
-  if (attachmentsHTML) node.querySelector('.attachments').innerHTML = attachmentsHTML;
-  if (summaryHTML) node.querySelector('.summary').innerHTML = summaryHTML;
-  conversation.appendChild(node);
-  conversation.scrollTop = conversation.scrollHeight;
+// === UI ELEMENTS ===
+const promptForm = document.getElementById("promptForm");
+const promptInput = document.getElementById("prompt");
+const conversation = document.getElementById("conversation");
+const gradeSelect = document.getElementById("grade");
+const modeSelect = document.getElementById("mode");
+const apiInput = document.getElementById("apiUrl");
+
+// === AUTO-CONNECT BACKEND ===
+// Automatically set the backend API URL (Render backend)
+// Works on both GitHub Pages and Render Static Site
+let backendBase = "https://chem-ed-genius.onrender.com"; // your backend URL
+
+// If you ever host multiple backends, you can use this smarter rule:
+if (window.location.hostname.includes("github.io") || window.location.hostname.includes("onrender.com")) {
+  backendBase = "https://chem-ed-genius.onrender.com";
 }
 
-function formatMath(html) {
-  // simple subscript formatting for formulas like H2O -> H<sub>2</sub>O
-  return html.replace(/([A-Za-z\)\]])(\d+)/g, '$1<sub>$2</sub>');
-}
+// Auto-fill the API field and disable editing
+apiInput.value = backendBase;
+apiInput.readOnly = true;
+apiInput.style.background = "#f7f7f7";
+apiInput.style.color = "#666";
+apiInput.style.cursor = "not-allowed";
 
-form.addEventListener('submit', async (e) => {
+// === CHAT FUNCTION ===
+promptForm.addEventListener("submit", async (e) => {
   e.preventDefault();
-  const text = promptEl.value.trim();
-  if (!text) return;
-  const apiUrl = (apiUrlEl.value || '').trim();
-  if (!apiUrl) {
-    alert('Paste your Render backend URL in the API URL box once (e.g. https://your-service.onrender.com)');
-    return;
-  }
+  const userPrompt = promptInput.value.trim();
+  if (!userPrompt) return;
 
-  addMessage('You', `${gradeEl.value} · ${modeEl.value}`, escapeHtml(text));
-  promptEl.value = '';
+  appendMessage("You", userPrompt);
+  promptInput.value = "";
 
-  addMessage('Bot', 'thinking...', 'Let me synthesize that — short & clear 🔬');
+  const grade = gradeSelect.value;
+  const mode = modeSelect.value;
 
   try {
-    const resp = await fetch(apiUrl + '/api/chat', {
-      method: 'POST',
-      headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify({
-        prompt: text,
-        grade: gradeEl.value,
-        mode: modeEl.value
-      })
-    });
-    if (!resp.ok) {
-      const txt = await resp.text();
-      throw new Error(txt || resp.statusText);
-    }
-    const data = await resp.json();
-    // remove last thinking message
-    conversation.lastElementChild.remove();
+    appendMessage("Chem-Ed Genius", "Thinking... 🧠");
 
-    // show bot outputs (body, attachments, summary)
-    const bodyHtml = formatMath(escapeHtml(data.answer || 'No answer'));
-    let attachments = '';
-    if (data.image) attachments = `<img src="${data.image}" alt="diagram">`;
-    const summary = (data.keytakeaways) ? `<strong>Key takeaways:</strong><br>${escapeHtml(data.keytakeaways)}` : '';
-    addMessage('CHEM-ED GENIUS', data.hint || 'exam-friendly', bodyHtml, attachments, summary);
+    const res = await fetch(`${backendBase}/api/chat`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        grade,
+        mode,
+        prompt: userPrompt,
+      }),
+    });
+
+    if (!res.ok) throw new Error(`Server Error (${res.status})`);
+
+    const data = await res.json();
+
+    // Clear "thinking" message
+    removeLastBotMessage();
+
+    // Display main text
+    appendMessage("Chem-Ed Genius", data.message || "No reply received.");
+
+    // If the backend includes any diagrams or summary
+    if (data.image) appendImage(data.image);
+    if (data.summary) appendSummary(data.summary);
+
   } catch (err) {
-    conversation.lastElementChild.remove();
-    addMessage('System', 'error', '⚠️ Error: ' + escapeHtml(err.message));
+    removeLastBotMessage();
+    appendMessage("Chem-Ed Genius", `❌ Error: ${err.message}`);
   }
 });
 
-function escapeHtml(s){ return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+// === MESSAGE HELPERS ===
+function appendMessage(sender, text) {
+  const msg = document.createElement("div");
+  msg.className = "msg";
+  msg.innerHTML = `<div class="meta"><b>${sender}:</b></div><div class="body">${formatText(text)}</div>`;
+  conversation.appendChild(msg);
+  conversation.scrollTop = conversation.scrollHeight;
+}
+
+function appendImage(imgUrl) {
+  const msg = document.createElement("div");
+  msg.className = "msg";
+  msg.innerHTML = `
+    <div class="meta"><b>Visualization:</b></div>
+    <div class="attachments"><img src="${imgUrl}" alt="chem-visual" style="max-width:100%;border-radius:8px;margin-top:6px;"/></div>
+  `;
+  conversation.appendChild(msg);
+  conversation.scrollTop = conversation.scrollHeight;
+}
+
+function appendSummary(summary) {
+  const msg = document.createElement("div");
+  msg.className = "msg";
+  msg.innerHTML = `
+    <div class="meta"><b>Key Points:</b></div>
+    <div class="summary">${formatText(summary)}</div>
+  `;
+  conversation.appendChild(msg);
+  conversation.scrollTop = conversation.scrollHeight;
+}
+
+function removeLastBotMessage() {
+  const messages = conversation.querySelectorAll(".msg");
+  if (messages.length > 0) {
+    const lastMsg = messages[messages.length - 1];
+    if (lastMsg.textContent.includes("Thinking")) {
+      lastMsg.remove();
+    }
+  }
+}
+
+function formatText(text) {
+  // Simple markdown-like formatter for subscripts/superscripts
+  return text
+    .replace(/\n/g, "<br>")
+    .replace(/(\d+)/g, "<sub>$1</sub>")
+    .replace(/\^(\d+)/g, "<sup>$1</sup>");
+}
