@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Chem-Ed Genius 🔬</title>
 
-    <!-- ✅ KaTeX for equation rendering -->
+    <!-- ✅ KaTeX for rendering equations -->
     <link
       rel="stylesheet"
       href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css"
@@ -37,7 +37,7 @@
       }
 
       .container {
-        background: rgba(0, 0, 0, 0.55);
+        background: rgba(0, 0, 0, 0.7);
         border-radius: 20px;
         padding: 30px;
         width: 90%;
@@ -62,12 +62,12 @@
       }
 
       #conversation {
-        background: rgba(255, 255, 255, 0.95);
+        background: rgba(255, 255, 255, 0.97);
         border-radius: 12px;
         padding: 15px;
         height: 400px;
         overflow-y: auto;
-        color: #000;
+        color: #111;
         scroll-behavior: smooth;
       }
 
@@ -82,12 +82,21 @@
       }
 
       .msg .body {
-        color: #111;
         line-height: 1.6;
-        background: #f8faff;
+        background: #f5faff;
         border-radius: 10px;
         padding: 12px;
         box-shadow: 0 1px 4px rgba(0, 0, 0, 0.1);
+        font-size: 1rem;
+        color: #000;
+      }
+
+      .katex-display {
+        background: rgba(255, 255, 255, 0.9);
+        padding: 8px;
+        border-radius: 8px;
+        text-align: center;
+        margin: 10px 0;
       }
 
       #chatForm {
@@ -117,14 +126,6 @@
 
       #sendBtn:hover {
         background-color: #0099cc;
-      }
-
-      .katex-display {
-        text-align: center;
-        background: rgba(255, 255, 255, 0.8);
-        border-radius: 8px;
-        padding: 6px;
-        margin: 8px 0;
       }
     </style>
   </head>
