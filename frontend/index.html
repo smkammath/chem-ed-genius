@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Chem-Ed Genius 🔬</title>
 
-    <!-- ✅ KaTeX for LaTeX rendering -->
+    <!-- ✅ KaTeX for equation rendering -->
     <link
       rel="stylesheet"
       href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css"
@@ -25,8 +25,7 @@
     <style>
       body {
         font-family: "Poppins", sans-serif;
-        background: url("https://i.ibb.co/zNbTqHn/chemistry-bg.jpg")
-          no-repeat center center fixed;
+        background: url("./assets/chem.jpg") no-repeat center center fixed;
         background-size: cover;
         color: #fff;
         display: flex;
@@ -89,17 +88,6 @@
         border-radius: 10px;
         padding: 12px;
         box-shadow: 0 1px 4px rgba(0, 0, 0, 0.1);
-        white-space: normal;
-        word-wrap: break-word;
-      }
-
-      /* Alternate chat bubble colors */
-      .msg:nth-child(odd) .body {
-        background: #e8f4ff;
-      }
-
-      .msg:nth-child(even) .body {
-        background: #dfffe3;
       }
 
       #chatForm {
@@ -114,7 +102,6 @@
         padding: 10px;
         font-size: 1rem;
         border: 1px solid #ccc;
-        resize: none;
       }
 
       #sendBtn {
@@ -132,7 +119,6 @@
         background-color: #0099cc;
       }
 
-      /* ✅ KaTeX equation block */
       .katex-display {
         text-align: center;
         background: rgba(255, 255, 255, 0.8);
