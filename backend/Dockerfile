@@ -1,7 +1,22 @@
+# ==============================
+#  CHEM-ED GENIUS BACKEND DOCKERFILE
+# ==============================
+
 FROM node:20-alpine
+
 WORKDIR /app
+
+# Copy dependency files
 COPY package*.json ./
-RUN npm install --omit=dev
+
+# Install dependencies
+RUN npm install --production
+
+# Copy all source files
 COPY . .
+
+# Expose Render port
 EXPOSE 3000
-CMD ["node","server.js"]
+
+# Start server
+CMD ["npm", "start"]
