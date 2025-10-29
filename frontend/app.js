@@ -1,7 +1,7 @@
 // ========================================
 //  CHEM-ED GENIUS FRONTEND LOGIC ⚗️
-//  Updated: Auto-connect to backend URL
 //  Author: Madhu (smkammath)
+//  Purpose: Clean text output, no raw HTML tags
 // ========================================
 
 // === UI ELEMENTS ===
@@ -13,16 +13,7 @@ const modeSelect = document.getElementById("mode");
 const apiInput = document.getElementById("apiUrl");
 
 // === AUTO-CONNECT BACKEND ===
-// Automatically set the backend API URL (Render backend)
-// Works on both GitHub Pages and Render Static Site
 let backendBase = "https://chem-ed-genius.onrender.com"; // your backend URL
-
-// If you ever host multiple backends, you can use this smarter rule:
-if (window.location.hostname.includes("github.io") || window.location.hostname.includes("onrender.com")) {
-  backendBase = "https://chem-ed-genius.onrender.com";
-}
-
-// Auto-fill the API field and disable editing
 apiInput.value = backendBase;
 apiInput.readOnly = true;
 apiInput.style.background = "#f7f7f7";
@@ -60,14 +51,13 @@ promptForm.addEventListener("submit", async (e) => {
 
     const data = await res.json();
 
-    // Clear "thinking" message
+    // Remove "Thinking..." placeholder
     removeLastBotMessage();
 
-    // Display main text
-    appendMessage("Chem-Ed Genius", data.message || "No reply received.");
+    // Display the response nicely formatted
+    appendMessage("Chem-Ed Genius", formatText(data.message));
 
-    // If the backend includes any diagrams or summary
-    if (data.image) appendImage(data.image);
+    // Add summary if available
     if (data.summary) appendSummary(data.summary);
 
   } catch (err) {
@@ -80,18 +70,9 @@ promptForm.addEventListener("submit", async (e) => {
 function appendMessage(sender, text) {
   const msg = document.createElement("div");
   msg.className = "msg";
-  msg.innerHTML = `<div class="meta"><b>${sender}:</b></div><div class="body">${formatText(text)}</div>`;
-  conversation.appendChild(msg);
-  conversation.scrollTop = conversation.scrollHeight;
-}
 
-function appendImage(imgUrl) {
-  const msg = document.createElement("div");
-  msg.className = "msg";
-  msg.innerHTML = `
-    <div class="meta"><b>Visualization:</b></div>
-    <div class="attachments"><img src="${imgUrl}" alt="chem-visual" style="max-width:100%;border-radius:8px;margin-top:6px;"/></div>
-  `;
+  msg.innerHTML = `<div class="meta"><b>${sender}:</b></div>
+                   <div class="body">${text}</div>`;
   conversation.appendChild(msg);
   conversation.scrollTop = conversation.scrollHeight;
 }
@@ -99,10 +80,8 @@ function appendImage(imgUrl) {
 function appendSummary(summary) {
   const msg = document.createElement("div");
   msg.className = "msg";
-  msg.innerHTML = `
-    <div class="meta"><b>Key Points:</b></div>
-    <div class="summary">${formatText(summary)}</div>
-  `;
+  msg.innerHTML = `<div class="meta"><b>Key Points:</b></div>
+                   <div class="summary">${formatText(summary)}</div>`;
   conversation.appendChild(msg);
   conversation.scrollTop = conversation.scrollHeight;
 }
@@ -111,16 +90,31 @@ function removeLastBotMessage() {
   const messages = conversation.querySelectorAll(".msg");
   if (messages.length > 0) {
     const lastMsg = messages[messages.length - 1];
-    if (lastMsg.textContent.includes("Thinking")) {
-      lastMsg.remove();
-    }
+    if (lastMsg.textContent.includes("Thinking")) lastMsg.remove();
   }
 }
 
+// === CLEAN TEXT FORMATTER ===
 function formatText(text) {
-  // Simple markdown-like formatter for subscripts/superscripts
-  return text
-    .replace(/\n/g, "<br>")
-    .replace(/(\d+)/g, "<sub>$1</sub>")
-    .replace(/\^(\d+)/g, "<sup>$1</sup>");
+  if (!text) return "";
+
+  return (
+    text
+      // Replace markdown-style headers (###, ##, #) with plain text
+      .replace(/^###\s*/gm, "")
+      .replace(/^##\s*/gm, "")
+      .replace(/^#\s*/gm, "")
+      // Replace LaTeX blocks like \[...\] with plain equations
+      .replace(/\\\[(.*?)\\\]/g, " $1 ")
+      // Replace subscript and superscript patterns
+      .replace(/(\d+)/g, "<sub>$1</sub>")
+      .replace(/\^(\d+)/g, "<sup>$1</sup>")
+      // Replace bold and italic markdown with plain text
+      .replace(/\*\*(.*?)\*\*/g, "$1")
+      .replace(/\*(.*?)\*/g, "$1")
+      // Replace bullet points with dashes
+      .replace(/^- /gm, "• ")
+      // Convert newlines to <br> for readability
+      .replace(/\n/g, "<br>")
+  );
 }
