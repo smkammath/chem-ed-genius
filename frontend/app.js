@@ -20,7 +20,7 @@ window.addEventListener("load", () => {
     }
   }
 
-  function addMessage(role, message, type = "normal") {
+  function addMessage(role, text, type = "normal") {
     const msgDiv = document.createElement("div");
     msgDiv.classList.add("msg");
 
@@ -30,7 +30,14 @@ window.addEventListener("load", () => {
 
     const body = document.createElement("div");
     body.classList.add("body");
-    body.innerHTML = message?.replace(/\\n/g, "<br>").trim();
+
+    // 🧠 Convert markdown to clean HTML
+    const cleanedText = text
+      .replaceAll("###", "####")
+      .replace(/\*\*(.*?)\*\*/g, "<b>$1</b>")
+      .replace(/```([\s\S]*?)```/g, "<pre><code>$1</code></pre>");
+
+    body.innerHTML = marked.parse(cleanedText);
 
     if (type === "out-of-scope") {
       body.style.background = "#fff9e6";
@@ -41,6 +48,7 @@ window.addEventListener("load", () => {
     msgDiv.appendChild(body);
     conversationDiv.appendChild(msgDiv);
     conversationDiv.scrollTop = conversationDiv.scrollHeight;
+
     renderLatex(body);
   }
 
@@ -57,7 +65,7 @@ window.addEventListener("load", () => {
       loadingMsg.classList.add("msg");
       loadingMsg.innerHTML = `
         <div class="meta"><b>Chem-Ed Genius:</b></div>
-        <div class="body">🧪 Thinking deeply...</div>`;
+        <div class="body">🧪 Analyzing your question...</div>`;
       conversationDiv.appendChild(loadingMsg);
       conversationDiv.scrollTop = conversationDiv.scrollHeight;
 
