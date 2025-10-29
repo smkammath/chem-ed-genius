@@ -11,26 +11,23 @@ const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
 });
 
-// ✅ Chemistry-only topic filter
+// ✅ Smarter chemistry relevance filter
 function isChemistryRelated(question) {
   const chemKeywords = [
     "atom",
     "molecule",
     "compound",
-    "element",
     "bond",
     "reaction",
-    "equation",
     "oxidation",
-    "reduction",
     "acid",
     "base",
     "salt",
     "catalyst",
     "enthalpy",
-    "entropy",
     "organic",
     "inorganic",
+    "periodic",
     "ion",
     "electron",
     "valence",
@@ -39,33 +36,26 @@ function isChemistryRelated(question) {
     "isomer",
     "stoichiometry",
     "chemical",
-    "thermodynamics",
-    "kinetics",
-    "structure",
-    "spectroscopy",
-    "titration",
-    "mole",
-    "Avogadro",
-    "mass",
-    "energy",
     "bonding",
     "atomic",
     "molecular",
-    "phase",
+    "equation",
+    "balance",
+    "formula",
+    "mass",
+    "energy",
     "chemistry",
-    "chemical engineering",
   ];
 
   const lowerQ = question.toLowerCase();
-  return chemKeywords.some((word) => lowerQ.includes(word));
+  const hasSymbols = /[A-Z][a-z]?\d*/.test(question); // detects chemical symbols like C2H6
+  return chemKeywords.some((word) => lowerQ.includes(word)) || hasSymbols;
 }
 
-// ✅ POST /api/chat
+// ✅ Chat route
 app.post("/api/chat", async (req, res) => {
   const { prompt } = req.body;
-
-  if (!prompt)
-    return res.status(400).json({ message: "No question provided." });
+  if (!prompt) return res.status(400).json({ message: "No question provided." });
 
   if (!isChemistryRelated(prompt)) {
     return res.json({
@@ -81,12 +71,12 @@ app.post("/api/chat", async (req, res) => {
         {
           role: "system",
           content:
-            "You are Chem-Ed Genius, an AI tutor that strictly answers chemistry-related questions. If a user asks anything outside chemistry or chemical engineering, respond with: '⚠️ I'm Chem-Ed Genius 🔬 — I only answer chemistry-related questions.'",
+            "You are Chem-Ed Genius, a professional chemistry AI tutor. Answer only chemistry-related questions. When a chemical equation is given, balance it and explain it in LaTeX format. Keep answers clear and educational.",
         },
         { role: "user", content: prompt },
       ],
-      temperature: 0.7,
-      max_tokens: 800,
+      temperature: 0.6,
+      max_tokens: 900,
     });
 
     res.json({ message: response.choices[0].message.content });
