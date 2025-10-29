@@ -1,97 +1,91 @@
+// =======================================
+//  CHEM-ED GENIUS BACKEND ⚗️
+//  Author: Madhu (smkammath)
+//  Purpose: AI-powered Chemistry Education API
+// =======================================
+
 import express from "express";
 import cors from "cors";
 import bodyParser from "body-parser";
-import rateLimit from "express-rate-limit";
+import dotenv from "dotenv";
 import OpenAI from "openai";
 
-const app = express();
-const port = process.env.PORT || 3000;
+dotenv.config();
 
-// ✅ Trust Render's proxy
+const app = express();
+const PORT = process.env.PORT || 3000;
+
+// ✅ Fix for Render reverse proxy (important!)
 app.set("trust proxy", 1);
 
+// Middleware
 app.use(cors());
 app.use(bodyParser.json());
 
-// === Rate limiter to prevent abuse ===
-const limiter = rateLimit({
-  windowMs: 60 * 1000,
-  limit: 30,
+// ✅ Health check route
+app.get("/api/health", (req, res) => {
+  res.json({ ok: true });
 });
-app.use(limiter);
 
-// === Health check endpoint ===
-app.get("/api/health", (req, res) => res.json({ ok: true }));
+// ✅ OpenAI Setup
+if (!process.env.OPENAI_API_KEY) {
+  console.error("❌ Missing OPENAI_API_KEY in environment variables!");
+}
 
-// === OpenAI setup ===
-const client = new OpenAI({
+const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
 });
 
-// === Utility: detect if a query is chemistry-related ===
-function isChemistryRelated(prompt) {
-  const chemistryKeywords = [
-    "atom", "bond", "molecule", "reaction", "oxidation", "reduction", "acid",
-    "base", "ph", "periodic", "ionic", "covalent", "hybridization", "stoichiometry",
-    "chemical", "element", "compound", "equilibrium", "redox", "catalyst",
-    "orbitals", "valence", "organic", "inorganic", "physical chemistry",
-    "reaction mechanism", "molar", "atomic", "ion", "electron", "gas law",
-    "thermodynamics", "enthalpy", "entropy", "kinetics"
-  ];
-
-  const normalized = prompt.toLowerCase();
-  return chemistryKeywords.some(keyword => normalized.includes(keyword));
-}
-
-// === Chat route ===
+// ✅ Core Chat Endpoint
 app.post("/api/chat", async (req, res) => {
   try {
     const { grade, mode, prompt } = req.body;
 
-    // === Out-of-scope detection ===
-    if (!isChemistryRelated(prompt)) {
-      return res.json({
-        message: `👋 Hey! I’m Chem-Ed Genius 🔬 — your chemistry learning buddy.  
-I’m trained specifically for **Chemistry concepts**, not general topics like animals, history, or memes 😅  
-Try asking me something like:
-- “Explain ionic bonding.”  
-- “Balance H₂ + O₂ → H₂O.”  
-- “What is hybridization?”  
-I’ll make it fun and visual! ⚗️`,
-      });
+    if (!prompt) {
+      return res.status(400).json({ error: "Missing prompt" });
     }
 
-    // === Chemistry queries: call OpenAI ===
     const systemPrompt = `
-You are Chem-Ed Genius 🔬 — an AI tutor that explains chemistry topics clearly, visually, and accurately.
-Be friendly, Gen-Z relatable, and accurate. Avoid HTML tags. Format using simple text with line breaks.
-`;
+      You are CHEM-ED GENIUS ⚗️, a friendly AI Chemistry tutor.
+      Adapt your explanations based on the student's level: ${grade}.
+      Focus mode: ${mode}.
 
-    const completion = await client.chat.completions.create({
+      Objectives:
+      - Explain chemistry clearly and visually.
+      - Use analogies and diagrams when helpful.
+      - Never hallucinate or give unsafe experimental info.
+      - Equations must be IUPAC-compliant.
+      - Show key points at the end if possible.
+    `;
+
+    // ✅ Call OpenAI model
+    const completion = await openai.chat.completions.create({
       model: "gpt-4o-mini",
       messages: [
         { role: "system", content: systemPrompt },
-        { role: "user", content: `Grade: ${grade}, Mode: ${mode}, Question: ${prompt}` },
+        { role: "user", content: prompt },
       ],
       temperature: 0.7,
-      max_tokens: 800,
     });
 
-    const answer = completion.choices[0].message.content;
+    const reply = completion.choices[0].message.content.trim();
 
-    res.json({ message: answer });
-  } catch (error) {
-    console.error("Error:", error);
-    res.status(500).json({ message: "Server error while processing your request." });
+    res.json({
+      message: reply,
+      summary: "Explained by Chem-Ed Genius 🔬",
+    });
+  } catch (err) {
+    console.error("❌ Chat endpoint error:", err.message);
+    res.status(500).json({ error: "Server Error: " + err.message });
   }
 });
 
-// === Default fallback ===
-app.get("/", (req, res) => {
-  res.send("Chem-Ed Genius backend is running!");
+// ✅ Fallback for undefined routes
+app.use((req, res) => {
+  res.status(404).json({ error: "Route not found" });
 });
 
-// === Start server ===
-app.listen(port, () => {
-  console.log(`✅ Server running on port ${port}`);
+// ✅ Start server
+app.listen(PORT, () => {
+  console.log(`✅ Server running on port ${PORT}`);
 });
