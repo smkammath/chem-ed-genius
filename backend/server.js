@@ -11,48 +11,19 @@ const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
 });
 
-// ✅ Smarter chemistry relevance filter
 function isChemistryRelated(question) {
   const chemKeywords = [
-    "atom",
-    "molecule",
-    "compound",
-    "bond",
-    "reaction",
-    "oxidation",
-    "acid",
-    "base",
-    "salt",
-    "catalyst",
-    "enthalpy",
-    "organic",
-    "inorganic",
-    "periodic",
-    "ion",
-    "electron",
-    "valence",
-    "orbitals",
-    "hybridization",
-    "isomer",
-    "stoichiometry",
-    "chemical",
-    "bonding",
-    "atomic",
-    "molecular",
-    "equation",
-    "balance",
-    "formula",
-    "mass",
-    "energy",
-    "chemistry",
+    "atom", "molecule", "compound", "reaction", "oxidation", "bond",
+    "acid", "base", "ion", "electron", "valence", "hybridization",
+    "chemical", "equation", "balance", "formula", "structure",
+    "organic", "inorganic", "enthalpy", "chemistry",
   ];
 
   const lowerQ = question.toLowerCase();
-  const hasSymbols = /[A-Z][a-z]?\d*/.test(question); // detects chemical symbols like C2H6
+  const hasSymbols = /[A-Z][a-z]?\d*/.test(question);
   return chemKeywords.some((word) => lowerQ.includes(word)) || hasSymbols;
 }
 
-// ✅ Chat route
 app.post("/api/chat", async (req, res) => {
   const { prompt } = req.body;
   if (!prompt) return res.status(400).json({ message: "No question provided." });
@@ -71,7 +42,7 @@ app.post("/api/chat", async (req, res) => {
         {
           role: "system",
           content:
-            "You are Chem-Ed Genius, a professional chemistry AI tutor. Answer only chemistry-related questions. When a chemical equation is given, balance it and explain it in LaTeX format. Keep answers clear and educational.",
+            "You are Chem-Ed Genius, a professional chemistry tutor. Always use KaTeX syntax for equations (enclose in $ or $$). Never use \\text{} unnecessarily. Format subscripts as normal KaTeX, e.g., C_2H_6.",
         },
         { role: "user", content: prompt },
       ],
