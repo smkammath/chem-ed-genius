@@ -13,8 +13,6 @@ window.addEventListener("load", () => {
         delimiters: [
           { left: "$$", right: "$$", display: true },
           { left: "$", right: "$", display: false },
-          { left: "\\[", right: "\\]", display: true },
-          { left: "\\(", right: "\\)", display: false },
         ],
       });
     }
@@ -31,18 +29,11 @@ window.addEventListener("load", () => {
     const body = document.createElement("div");
     body.classList.add("body");
 
-    // 🧠 Convert markdown to clean HTML
     const cleanedText = text
       .replaceAll("###", "####")
       .replace(/\*\*(.*?)\*\*/g, "<b>$1</b>")
       .replace(/```([\s\S]*?)```/g, "<pre><code>$1</code></pre>");
-
     body.innerHTML = marked.parse(cleanedText);
-
-    if (type === "out-of-scope") {
-      body.style.background = "#fff9e6";
-      body.style.border = "1px solid #e0c800";
-    }
 
     msgDiv.appendChild(meta);
     msgDiv.appendChild(body);
@@ -65,7 +56,7 @@ window.addEventListener("load", () => {
       loadingMsg.classList.add("msg");
       loadingMsg.innerHTML = `
         <div class="meta"><b>Chem-Ed Genius:</b></div>
-        <div class="body">🧪 Analyzing your question...</div>`;
+        <div class="body">🧪 Processing your chemistry question...</div>`;
       conversationDiv.appendChild(loadingMsg);
       conversationDiv.scrollTop = conversationDiv.scrollHeight;
 
@@ -88,20 +79,7 @@ window.addEventListener("load", () => {
           return;
         }
 
-        const msg = data.message.trim();
-
-        if (
-          msg.toLowerCase().includes("biology") ||
-          msg.toLowerCase().includes("out of scope")
-        ) {
-          addMessage(
-            "Chem-Ed Genius",
-            "⚠️ I'm Chem-Ed Genius 🔬 — I specialize only in chemistry-related topics!",
-            "out-of-scope"
-          );
-        } else {
-          addMessage("Chem-Ed Genius", msg);
-        }
+        addMessage("Chem-Ed Genius", data.message);
       } catch (err) {
         console.error("Error:", err);
         loadingMsg.remove();
