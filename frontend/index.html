@@ -1,0 +1,93 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>CHEM-ED GENIUS</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <div class="bg"></div>
+  <main class="app">
+    <header>
+      <h1>CHEM-ED GENIUS 🔬</h1>
+      <p class="tagline">Explain. Visualize. Ace the exam — from 10th grade to college.</p>
+    </header>
+
+    <nav class="tabs">
+      <button class="tab-btn active" data-tab="chat">💬 Chat Mode</button>
+      <button class="tab-btn" data-tab="teacher">🧑‍🏫 Teacher Mode</button>
+    </nav>
+
+    <section id="tab-chat" class="tab active">
+      <section class="controls">
+        <label for="grade">Grade / Level</label>
+        <select id="grade">
+          <option value="10th">10th</option>
+          <option value="11th">11th</option>
+          <option value="12th" selected>12th</option>
+          <option value="college">College</option>
+        </select>
+
+        <label for="mode">Mode</label>
+        <select id="mode">
+          <option value="explain">Explain</option>
+          <option value="visualize">Visualize</option>
+          <option value="solve">Problem Solve</option>
+          <option value="teacher">Teacher Mode</option>
+        </select>
+      </section>
+
+      <section class="chat">
+        <div id="conversation"></div>
+
+        <form id="promptForm">
+          <textarea id="prompt" placeholder="Ask: 'Explain hybridization' or 'Balance: C2H6 + O2 -> CO2 + H2O'"></textarea>
+          <div class="form-row">
+            <input id="apiUrl" placeholder="API URL (Render backend) — set once" />
+            <button type="submit" id="send">Send</button>
+          </div>
+        </form>
+      </section>
+    </section>
+
+    <section id="tab-teacher" class="tab">
+      <div class="teacher-panel">
+        <h2>Teacher Mode 🧑‍🏫</h2>
+        <p>Generate references and auto-grade answers using embeddings.</p>
+
+        <label>Backend API URL</label>
+        <input id="teacherApiUrl" placeholder="https://chem-backend.onrender.com" />
+
+        <div class="teacher-card">
+          <h3>🔍 Reference Search</h3>
+          <input id="refQuery" placeholder="Search NCERT concept (e.g., oxidation)" />
+          <button id="searchRef">Search</button>
+          <ul id="refResults"></ul>
+        </div>
+
+        <div class="teacher-card">
+          <h3>🧠 Auto-Grader</h3>
+          <input id="question" placeholder="Question (e.g., Define oxidation)" />
+          <textarea id="expected" placeholder="Expected Answer"></textarea>
+          <textarea id="studentAns" placeholder="Student's Answer"></textarea>
+          <button id="gradeBtn">Grade Answer</button>
+          <div id="gradeResult"></div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <template id="msgTpl">
+    <div class="msg">
+      <div class="meta"></div>
+      <div class="body"></div>
+      <div class="attachments"></div>
+      <div class="summary"></div>
+    </div>
+  </template>
+
+  <script src="app.js"></script>
+  <script src="frontend_teacher.js"></script>
+</body>
+</html>
