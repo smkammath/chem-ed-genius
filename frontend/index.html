@@ -1,172 +1,181 @@
 <!DOCTYPE html>
 <html lang="en">
-<head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Chem-Ed Genius 🔬</title>
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Chem-Ed Genius 🔬</title>
 
-  <!-- ✅ KaTeX for LaTeX rendering -->
-  <link
-    rel="stylesheet"
-    href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css"
-  />
-  <script
-    defer
-    src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"
-  ></script>
-  <script
-    defer
-    src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js"
-  ></script>
+    <!-- ✅ KaTeX -->
+    <link
+      rel="stylesheet"
+      href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css"
+    />
+    <script
+      defer
+      src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"
+    ></script>
+    <script
+      defer
+      src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js"
+    ></script>
 
-  <style>
-    body {
-      font-family: 'Poppins', sans-serif;
-      background: url('https://images.unsplash.com/photo-1581090700227-1e37b190418e?auto=format&fit=crop&w=1920&q=80')
-        no-repeat center center fixed;
-      background-size: cover;
-      color: #fff;
-      display: flex;
-      justify-content: center;
-      align-items: center;
-      flex-direction: column;
-      height: 100vh;
-      margin: 0;
-    }
+    <!-- ✅ Markdown Parser -->
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
 
-    .container {
-      background: rgba(255, 255, 255, 0.1);
-      border-radius: 20px;
-      padding: 30px;
-      width: 90%;
-      max-width: 800px;
-      backdrop-filter: blur(10px);
-      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
-    }
+    <style>
+      body {
+        font-family: "Poppins", sans-serif;
+        background: linear-gradient(120deg, #020024, #090979, #00d4ff);
+        background-attachment: fixed;
+        color: #fff;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        flex-direction: column;
+        height: 100vh;
+        margin: 0;
+      }
 
-    h1 {
-      text-align: center;
-      color: #00bfff;
-      font-size: 1.8rem;
-      margin-bottom: 0.3em;
-    }
+      .container {
+        background: rgba(255, 255, 255, 0.12);
+        border-radius: 20px;
+        padding: 30px;
+        width: 90%;
+        max-width: 850px;
+        backdrop-filter: blur(12px);
+        box-shadow: 0 8px 25px rgba(0, 0, 0, 0.3);
+      }
 
-    h2 {
-      text-align: center;
-      color: #ccc;
-      font-weight: 400;
-      font-size: 1rem;
-      margin-bottom: 20px;
-    }
+      h1 {
+        text-align: center;
+        color: #00eaff;
+        font-size: 2rem;
+        margin-bottom: 0.4em;
+      }
 
-    #conversation {
-      background: rgba(255, 255, 255, 0.9);
-      border-radius: 12px;
-      padding: 15px;
-      height: 350px;
-      overflow-y: auto;
-      color: #000;
-    }
+      h2 {
+        text-align: center;
+        color: #d3d3d3;
+        font-weight: 400;
+        font-size: 1rem;
+        margin-bottom: 20px;
+      }
 
-    .msg {
-      margin-bottom: 15px;
-    }
+      #conversation {
+        background: rgba(255, 255, 255, 0.9);
+        border-radius: 12px;
+        padding: 15px;
+        height: 380px;
+        overflow-y: auto;
+        color: #000;
+        scroll-behavior: smooth;
+      }
 
-    .msg .meta {
-      font-weight: bold;
-      color: #00bfff;
-      margin-bottom: 4px;
-    }
+      .msg {
+        margin-bottom: 15px;
+      }
 
-    .msg .body {
-      color: #222;
-      line-height: 1.5;
-      background: #fff;
-      border-radius: 10px;
-      padding: 10px;
-      box-shadow: 0 1px 4px rgba(0, 0, 0, 0.1);
-    }
+      .msg .meta {
+        font-weight: bold;
+        color: #0099ff;
+        margin-bottom: 4px;
+      }
 
-    /* Chat bubbles */
-    .msg:nth-child(odd) .body {
-      background: #e6f2ff;
-    }
-    .msg:nth-child(even) .body {
-      background: #d4f7e6;
-    }
+      .msg .body {
+        color: #222;
+        line-height: 1.6;
+        background: #fff;
+        border-radius: 10px;
+        padding: 12px;
+        box-shadow: 0 1px 4px rgba(0, 0, 0, 0.1);
+        white-space: normal;
+        word-wrap: break-word;
+      }
 
-    #chatForm {
-      margin-top: 15px;
-      display: flex;
-      gap: 10px;
-    }
+      /* Chat bubbles */
+      .msg:nth-child(odd) .body {
+        background: #e6f2ff;
+      }
 
-    #prompt {
-      flex: 1;
-      border-radius: 10px;
-      padding: 10px;
-      font-size: 1rem;
-      border: 1px solid #ccc;
-      resize: none;
-    }
+      .msg:nth-child(even) .body {
+        background: #d4f7e6;
+      }
 
-    #sendBtn {
-      background-color: #00bfff;
-      border: none;
-      border-radius: 10px;
-      color: #fff;
-      padding: 10px 20px;
-      cursor: pointer;
-      font-weight: bold;
-      transition: 0.3s;
-    }
+      #chatForm {
+        margin-top: 15px;
+        display: flex;
+        gap: 10px;
+      }
 
-    #sendBtn:hover {
-      background-color: #0099cc;
-    }
-  </style>
-</head>
+      #prompt {
+        flex: 1;
+        border-radius: 10px;
+        padding: 10px;
+        font-size: 1rem;
+        border: 1px solid #ccc;
+        resize: none;
+      }
 
-<body>
-  <div class="container">
-    <h1>CHEM-ED GENIUS 🔬</h1>
-    <h2>Explain. Visualize. Ace the exam — from 10th grade to college.</h2>
+      #sendBtn {
+        background-color: #00bfff;
+        border: none;
+        border-radius: 10px;
+        color: #fff;
+        padding: 10px 20px;
+        cursor: pointer;
+        font-weight: bold;
+        transition: 0.3s;
+      }
 
-    <div class="modes">
-      <button id="chatModeBtn" class="mode-btn active">💬 Chat Mode</button>
-      <button id="teacherModeBtn" class="mode-btn">👩‍🏫 Teacher Mode</button>
+      #sendBtn:hover {
+        background-color: #008ecc;
+      }
+
+      /* ✅ KaTeX equations styling */
+      .katex-display {
+        text-align: center;
+        background: rgba(255, 255, 255, 0.7);
+        border-radius: 8px;
+        padding: 6px;
+        margin: 8px 0;
+      }
+    </style>
+  </head>
+
+  <body>
+    <div class="container">
+      <h1>CHEM-ED GENIUS 🔬</h1>
+      <h2>Explain. Visualize. Ace the exam — from 10th grade to college.</h2>
+
+      <div>
+        <label for="grade">Grade / Level</label>
+        <select id="grade">
+          <option value="10th">10th</option>
+          <option value="11th">11th</option>
+          <option value="12th" selected>12th</option>
+          <option value="college">College</option>
+        </select>
+
+        <label for="mode">Mode</label>
+        <select id="mode">
+          <option value="Explain">Explain</option>
+          <option value="Visualize">Visualize</option>
+          <option value="Balance">Balance Equations</option>
+        </select>
+      </div>
+
+      <div id="conversation"></div>
+
+      <form id="chatForm">
+        <textarea
+          id="prompt"
+          rows="2"
+          placeholder="Ask: 'Explain hybridization' or 'Balance: C2H6 + O2 -> CO2 + H2O'"
+        ></textarea>
+        <button type="submit" id="sendBtn">Send</button>
+      </form>
     </div>
 
-    <div class="selectors">
-      <label for="grade">Grade / Level</label>
-      <select id="grade">
-        <option value="10th">10th</option>
-        <option value="11th">11th</option>
-        <option value="12th" selected>12th</option>
-        <option value="college">College</option>
-      </select>
-
-      <label for="mode">Mode</label>
-      <select id="mode">
-        <option value="Explain">Explain</option>
-        <option value="Visualize">Visualize</option>
-        <option value="Balance">Balance Equations</option>
-      </select>
-    </div>
-
-    <div id="conversation"></div>
-
-    <form id="chatForm">
-      <textarea
-        id="prompt"
-        rows="2"
-        placeholder="Ask: 'Explain hybridization' or 'Balance: C2H6 + O2 -> CO2 + H2O'"
-      ></textarea>
-      <button type="submit" id="sendBtn">Send</button>
-    </form>
-  </div>
-
-  <!-- ✅ Load JS AFTER DOM -->
-  <script src="app.js" defer></script>
-</body>
+    <script src="app.js"></script>
+  </body>
 </html>
