@@ -45,18 +45,17 @@ app.post("/api/chat", async (req, res) => {
       return res.status(400).json({ error: "Missing prompt" });
     }
 
-    // Create the system prompt dynamically
     const systemPrompt = `
-    You are CHEM-ED GENIUS ⚗️, a friendly AI Chemistry tutor.
-    Adapt your explanations based on the student's level: ${grade}.
-    Focus mode: ${mode}.
+      You are CHEM-ED GENIUS ⚗️, a friendly AI Chemistry tutor.
+      Adapt your explanations based on the student's level: ${grade}.
+      Focus mode: ${mode}.
 
-    Objectives:
-    - Explain chemistry clearly and visually.
-    - Use analogies and diagrams when helpful.
-    - Never hallucinate or give unsafe experimental info.
-    - Equations must be IUPAC-compliant.
-    - Show key points at the end if possible.
+      Objectives:
+      - Explain chemistry clearly and visually.
+      - Use analogies and diagrams when helpful.
+      - Never hallucinate or give unsafe experimental info.
+      - Equations must be IUPAC-compliant.
+      - Show key points at the end if possible.
     `;
 
     // ✅ Call OpenAI model
@@ -81,7 +80,7 @@ app.post("/api/chat", async (req, res) => {
   }
 });
 
-// ✅ 404 fallback (optional)
+// ✅ Fallback for undefined routes
 app.use((req, res) => {
   res.status(404).json({ error: "Route not found" });
 });
