@@ -1,92 +1,97 @@
-const chatForm = document.querySelector("#chatForm");
-const promptInput = document.querySelector("#prompt");
-const conversationDiv = document.querySelector("#conversation");
-const gradeSelect = document.querySelector("#grade");
-const modeSelect = document.querySelector("#mode");
+document.addEventListener("DOMContentLoaded", () => {
+  const chatForm = document.querySelector("#chatForm");
+  const promptInput = document.querySelector("#prompt");
+  const conversationDiv = document.querySelector("#conversation");
+  const gradeSelect = document.querySelector("#grade");
+  const modeSelect = document.querySelector("#mode");
 
-// 👇 MAKE SURE this URL matches your backend Render service
-const BACKEND_URL = "https://chem-ed-genius.onrender.com/api/chat";
+  // 🔗 Backend API URL
+  const BACKEND_URL = "https://chem-ed-genius.onrender.com/api/chat";
 
-// Helper to display messages
-function addMessage(role, message, type = "normal") {
-  const msgDiv = document.createElement("div");
-  msgDiv.classList.add("msg");
+  // Function to display messages neatly
+  function addMessage(role, message, type = "normal") {
+    const msgDiv = document.createElement("div");
+    msgDiv.classList.add("msg");
 
-  const meta = document.createElement("div");
-  meta.classList.add("meta");
-  meta.innerHTML = `<b>${role}:</b>`;
+    const meta = document.createElement("div");
+    meta.classList.add("meta");
+    meta.innerHTML = `<b>${role}:</b>`;
 
-  const body = document.createElement("div");
-  body.classList.add("body");
+    const body = document.createElement("div");
+    body.classList.add("body");
 
-  // For warnings (out of scope)
-  if (type === "out-of-scope") {
-    body.style.background = "#fff6cc";
-    body.style.border = "1px solid #e6c200";
-    body.style.borderRadius = "8px";
-    body.style.padding = "8px";
+    if (type === "out-of-scope") {
+      body.style.background = "#fff6cc";
+      body.style.border = "1px solid #e6c200";
+      body.style.borderRadius = "8px";
+      body.style.padding = "8px";
+    }
+
+    const cleaned = (message || "")
+      .replace(/<[^>]*>?/gm, "")
+      .replace(/\n/g, "<br>");
+
+    body.innerHTML = cleaned;
+    msgDiv.appendChild(meta);
+    msgDiv.appendChild(body);
+    conversationDiv.appendChild(msgDiv);
+    conversationDiv.scrollTop = conversationDiv.scrollHeight;
   }
 
-  const cleaned = (message || "")
-    .replace(/<[^>]*>?/gm, "") // remove HTML tags
-    .replace(/\n/g, "<br>"); // keep line breaks
+  // ✅ Event listener only runs once DOM is ready
+  if (chatForm) {
+    chatForm.addEventListener("submit", async (e) => {
+      e.preventDefault();
 
-  body.innerHTML = cleaned;
-  msgDiv.appendChild(meta);
-  msgDiv.appendChild(body);
-  conversationDiv.appendChild(msgDiv);
-  conversationDiv.scrollTop = conversationDiv.scrollHeight;
-}
+      const prompt = promptInput.value.trim();
+      if (!prompt) return;
 
-// Handle chat form submission
-chatForm.addEventListener("submit", async (e) => {
-  e.preventDefault();
+      addMessage("You", prompt);
+      promptInput.value = "";
 
-  const prompt = promptInput.value.trim();
-  if (!prompt) return;
+      const loadingMsg = document.createElement("div");
+      loadingMsg.classList.add("msg");
+      loadingMsg.innerHTML =
+        `<div class="meta"><b>Chem-Ed Genius:</b></div><div class="body">⏳ Thinking...</div>`;
+      conversationDiv.appendChild(loadingMsg);
+      conversationDiv.scrollTop = conversationDiv.scrollHeight;
 
-  addMessage("You", prompt);
-  promptInput.value = "";
+      try {
+        console.log("Sending request to backend:", BACKEND_URL);
 
-  const loadingMsg = document.createElement("div");
-  loadingMsg.classList.add("msg");
-  loadingMsg.innerHTML =
-    `<div class="meta"><b>Chem-Ed Genius:</b></div><div class="body">⏳ Thinking...</div>`;
-  conversationDiv.appendChild(loadingMsg);
-  conversationDiv.scrollTop = conversationDiv.scrollHeight;
+        const response = await fetch(BACKEND_URL, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            grade: gradeSelect.value,
+            mode: modeSelect.value,
+            prompt: prompt,
+          }),
+        });
 
-  try {
-    console.log("Sending request to backend:", BACKEND_URL);
+        console.log("Response status:", response.status);
+        const data = await response.json();
+        console.log("Response from backend:", data);
 
-    const response = await fetch(BACKEND_URL, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        grade: gradeSelect.value,
-        mode: modeSelect.value,
-        prompt: prompt,
-      }),
+        loadingMsg.remove();
+
+        if (!data || !data.message) {
+          addMessage("Chem-Ed Genius", "⚠️ No response from server.");
+          return;
+        }
+
+        if (data.message.includes("Chem-Ed Genius 🔬") || data.message.includes("not biology")) {
+          addMessage("Chem-Ed Genius", data.message, "out-of-scope");
+        } else {
+          addMessage("Chem-Ed Genius", data.message);
+        }
+      } catch (error) {
+        console.error("Error occurred:", error);
+        loadingMsg.remove();
+        addMessage("Chem-Ed Genius", "❌ Server unreachable. Please try again.");
+      }
     });
-
-    console.log("Response status:", response.status);
-    const data = await response.json();
-    console.log("Response from backend:", data);
-
-    loadingMsg.remove();
-
-    if (!data || !data.message) {
-      addMessage("Chem-Ed Genius", "⚠️ No response from server.");
-      return;
-    }
-
-    if (data.message.includes("Chem-Ed Genius 🔬") || data.message.includes("not biology")) {
-      addMessage("Chem-Ed Genius", data.message, "out-of-scope");
-    } else {
-      addMessage("Chem-Ed Genius", data.message);
-    }
-  } catch (error) {
-    console.error("Error occurred:", error);
-    loadingMsg.remove();
-    addMessage("Chem-Ed Genius", "❌ Server unreachable. Please try again.");
+  } else {
+    console.error("❌ chatForm not found in DOM!");
   }
 });
