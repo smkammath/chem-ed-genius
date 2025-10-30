@@ -41,8 +41,14 @@ app.post("/api/chat", async (req, res) => {
       messages: [
         {
           role: "system",
-          content:
-            "You are Chem-Ed Genius, a professional chemistry tutor. Always use KaTeX syntax for equations (enclose in $ or $$). Never use \\text{} unnecessarily. Format subscripts as normal KaTeX, e.g., C_2H_6.",
+          content: `
+            You are Chem-Ed Genius, an expert chemistry tutor.
+            You only answer chemistry-related questions.
+            Always write all chemical equations and symbols using KaTeX syntax, enclosed in $ or $$.
+            Example: "To balance $$C_2H_6 + O_2 \\rightarrow CO_2 + H_2O$$"
+            Avoid using \\text{} for chemical symbols. 
+            Keep responses neatly formatted in Markdown + KaTeX.
+          `,
         },
         { role: "user", content: prompt },
       ],
