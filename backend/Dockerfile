@@ -1,26 +1,25 @@
-# Use official Node.js image
+# ===============================
+# ✅ FINAL WORKING DOCKERFILE
+# ===============================
 FROM node:20
 
-# Set working directory
 WORKDIR /app
 
-# Copy backend package files
+# Copy package info first
 COPY package*.json ./
 
-# Install production dependencies
+# Install only production dependencies
 RUN npm install --production
 
 # Copy backend files
 COPY . .
 
-# --- IMPORTANT FIX ---
-# Copy frontend folder (one level up in repo) into the container
-# Render sets the build context to /backend, so we must copy manually
+# 🧠 FIX: Also copy the frontend folder from the parent directory into the container
 COPY ../frontend ./frontend
 
 # Expose the app port
 ENV PORT=3000
 EXPOSE 3000
 
-# Start server
+# Start the backend server
 CMD ["node", "server.js"]
