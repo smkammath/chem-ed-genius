@@ -1,49 +1,43 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Chem-Ed Genius 🧪</title>
+  <link rel="stylesheet" href="styles.css" />
 
-  <!-- KaTeX -->
-  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/katex.min.css">
-  <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/katex.min.js"></script>
-  <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/contrib/mhchem.min.js"></script>
+  <!-- MathJax for chemistry notation -->
+  <script id="MathJax-script" async
+    src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js">
+  </script>
 
-  <!-- 3Dmol viewer -->
-  <script defer src="https://3Dmol.org/build/3Dmol-min.js"></script>
+  <!-- 3Dmol.js for molecular visualization -->
+  <script src="https://3Dmol.csb.pitt.edu/build/3Dmol-min.js"></script>
 
-  <link rel="stylesheet" href="styles.css">
+  <script>
+    // Function to trigger MathJax rendering
+    function renderMath() {
+      if (window.MathJax) MathJax.typesetPromise();
+    }
+  </script>
 </head>
+
 <body>
-  <header class="header">
-    <h1>Chem-Ed Genius <span class="emoji">🧪</span></h1>
-    <p>Explain. Visualize. Ace the exam — chemistry only.</p>
-  </header>
+  <div class="app-container">
+    <header>
+      <h1>Chem-Ed Genius 🧪</h1>
+      <p>Explain. Visualize. Ace the exam — chemistry only.</p>
+    </header>
 
-  <main class="main">
-    <div id="chat" class="chat-box" aria-live="polite"></div>
+    <main id="chat-window"></main>
 
-    <form id="chatForm" class="chat-form">
-      <input id="promptInput" placeholder="Ask a chemistry question (e.g. 'Show 3D of CH3OH')" />
-      <button type="submit">Send</button>
-    </form>
-  </main>
-
-  <!-- 3D modal -->
-  <div id="viewerModal" class="modal hidden" role="dialog" aria-modal="true">
-    <div class="modal-content">
-      <button id="closeModal" class="close-btn" title="Close (Esc)">✕</button>
-      <h3 id="viewerTitle">3D Viewer</h3>
-      <p id="viewerCID" class="cid"></p>
-      <div id="viewer" style="width:100%;height:420px;"></div>
-      <div class="actions">
-        <button id="downloadSdf">Download SDF</button>
-        <button id="fitModel">Fit Model</button>
-      </div>
-    </div>
+    <footer>
+      <input id="user-input" type="text"
+             placeholder="Ask a chemistry question (e.g. 'Show 3D of CH3OH')" />
+      <button id="send-btn">Send</button>
+    </footer>
   </div>
 
-  <script type="module" src="app.js"></script>
+  <script src="app.js"></script>
 </body>
 </html>
