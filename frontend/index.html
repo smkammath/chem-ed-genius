@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Chem-Ed Genius 🔬</title>
 
-    <!-- ✅ KaTeX for rendering equations -->
+    <!-- ✅ KaTeX for Math Rendering -->
     <link
       rel="stylesheet"
       href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css"
@@ -37,7 +37,7 @@
       }
 
       .container {
-        background: rgba(0, 0, 0, 0.7);
+        background: rgba(0, 0, 0, 0.75);
         border-radius: 20px;
         padding: 30px;
         width: 90%;
@@ -83,20 +83,11 @@
 
       .msg .body {
         line-height: 1.6;
-        background: #f5faff;
+        background: #f7fbff;
         border-radius: 10px;
         padding: 12px;
-        box-shadow: 0 1px 4px rgba(0, 0, 0, 0.1);
         font-size: 1rem;
         color: #000;
-      }
-
-      .katex-display {
-        background: rgba(255, 255, 255, 0.9);
-        padding: 8px;
-        border-radius: 8px;
-        text-align: center;
-        margin: 10px 0;
       }
 
       #chatForm {
@@ -126,6 +117,11 @@
 
       #sendBtn:hover {
         background-color: #0099cc;
+      }
+
+      .katex-display {
+        text-align: center;
+        margin: 10px 0;
       }
     </style>
   </head>
