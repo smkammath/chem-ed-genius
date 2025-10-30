@@ -3,7 +3,7 @@ const chatContainer = document.getElementById("chat-container");
 const chatForm = document.getElementById("chatForm");
 const userInput = document.getElementById("user-input");
 
-// --- KaTeX render ---
+/* ---------- KaTeX Rendering ---------- */
 function renderKaTeX() {
   if (window.renderMathInElement) {
     renderMathInElement(document.body, {
@@ -16,7 +16,7 @@ function renderKaTeX() {
   }
 }
 
-// --- Chat submission handler ---
+/* ---------- Submit Handler ---------- */
 chatForm.addEventListener("submit", async (e) => {
   e.preventDefault();
   const prompt = userInput.value.trim();
@@ -35,13 +35,13 @@ chatForm.addEventListener("submit", async (e) => {
     const formatted = formatResponse(data.message);
     appendMessage("Chem-Ed Genius", formatted, "bot");
     renderKaTeX();
-    autoVisualize(formatted);
-  } catch (error) {
-    appendMessage("Chem-Ed Genius", "⚠️ Server error. Please try again later.", "bot");
+    detectAndVisualize(formatted);
+  } catch {
+    appendMessage("Chem-Ed Genius", "⚠️ Server error. Try again later.", "bot");
   }
 });
 
-// --- Add message to UI ---
+/* ---------- Display Message ---------- */
 function appendMessage(sender, text, type) {
   const div = document.createElement("div");
   div.classList.add(type === "user" ? "user-message" : "bot-message");
@@ -50,7 +50,7 @@ function appendMessage(sender, text, type) {
   chatContainer.scrollTop = chatContainer.scrollHeight;
 }
 
-// --- Basic Markdown formatter ---
+/* ---------- Markdown Formatter ---------- */
 function formatResponse(text) {
   return text
     .replace(/\n/g, "<br>")
@@ -60,28 +60,34 @@ function formatResponse(text) {
     .replace(/##(.*?)<br>/g, "<h2>$1</h2>");
 }
 
-// --- Auto-visualize molecules when chemical formulas detected ---
-async function autoVisualize(text) {
-  const matches = [...text.matchAll(/\\ce{([^}]*)}/g)];
+/* ---------- Formula Auto Detection ---------- */
+async function detectAndVisualize(text) {
+  // Capture \ce{...} and plain formulas like CH3OH
+  const matches = [
+    ...text.matchAll(/\\ce{([^}]*)}/g),
+    ...text.matchAll(/\b([A-Z][a-z]?\d*){2,}\b/g),
+  ];
+
   for (const m of matches) {
-    const formula = m[1];
-    await visualizeMolecule(formula);
+    const molecule = m[1] || m[0];
+    await visualizeMolecule(molecule);
   }
 }
 
-// --- Fetch SDF and render 3Dmol canvas ---
+/* ---------- Render Molecule in 3D ---------- */
 async function visualizeMolecule(name) {
   try {
     const viewerDiv = document.createElement("div");
     viewerDiv.className = "mol-viewer";
     chatContainer.appendChild(viewerDiv);
 
-    const resp = await fetch(
-      `https://pubchem.ncbi.nlm.nih.gov/rest/pug/compound/name/${encodeURIComponent(
-        name
-      )}/SDF?record_type=3d`
-    );
-    const sdf = await resp.text();
+    const response = await fetch(`${API_URL}/api/visualize`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ molecule: name }),
+    });
+
+    const { sdf } = await response.json();
 
     const viewer = $3Dmol.createViewer(viewerDiv, { backgroundColor: "white" });
     viewer.addModel(sdf, "sdf");
