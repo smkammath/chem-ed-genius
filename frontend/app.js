@@ -1,255 +1,243 @@
 // ======================================================
-// 🌟 Chem-Ed Genius 3D Frontend — Reaction Visualization Enabled
+// ⚛️ Chem-Ed Genius 3D Frontend — Reaction + Energy Visualization
 // ======================================================
 
-const API_URL = "https://chem-ed-genius.onrender.com"; // Replace with your backend URL
+const API_URL = "https://chem-ed-genius.onrender.com"; // backend URL
 
 const chatBox = document.querySelector("#chat");
 const form = document.querySelector("#chatForm");
 const promptEl = document.querySelector("#prompt");
 
-// Append message helper
+// ---------- Utility UI ----------
 function appendMessage(sender, text, cls = "bot") {
-  const wrapper = document.createElement("div");
-  wrapper.className = "message " + (cls === "user" ? "user" : "bot");
+  const wrap = document.createElement("div");
+  wrap.className = "message " + (cls === "user" ? "user" : "bot");
   const strong = document.createElement("strong");
   strong.textContent = sender;
   const content = document.createElement("div");
   content.className = "content";
   content.innerText = text;
-  wrapper.appendChild(strong);
-  wrapper.appendChild(content);
-  chatBox.appendChild(wrapper);
+  wrap.appendChild(strong);
+  wrap.appendChild(content);
+  chatBox.appendChild(wrap);
   chatBox.scrollTop = chatBox.scrollHeight;
   return content;
 }
 
-// Render Markdown + KaTeX
 function renderMarkdownInto(el, text) {
-  if (!text) {
-    el.innerText = "";
-    return;
-  }
-
+  if (!text) return;
   let html = text
     .replace(/^### (.*$)/gim, "<h3>$1</h3>")
-    .replace(/^\s*-\s+(.*)/gim, "<li>$1</li>")
     .replace(/\*\*(.*?)\*\*/g, "<strong>$1</strong>")
     .replace(/\*(.*?)\*/g, "<em>$1</em>")
     .replace(/\n/g, "<br>");
-  html = html.replace(/(<li>[\s\S]*?<\/li>)/gms, (m) => "<ul>" + m + "</ul>");
   el.innerHTML = html;
-
   try {
-    if (window.renderMathInElement) {
+    if (window.renderMathInElement)
       window.renderMathInElement(el, {
         delimiters: [
           { left: "$$", right: "$$", display: true },
           { left: "$", right: "$", display: false },
         ],
       });
-    }
-  } catch (err) {
-    console.warn("KaTeX render error", err);
-  }
+  } catch {}
 }
 
-// Detect and visualize molecules or reactions
-async function detectAndMaybeVisualize(userText, containerEl) {
+// ---------- 3D Visualization Dispatcher ----------
+async function detectAndMaybeVisualize(userText, container) {
   const lower = userText.toLowerCase();
+  if (lower.includes("->") || lower.includes("→") || lower.includes("reaction"))
+    return visualizeReaction(userText, container);
 
-  // Case 1: Reaction detected (with arrow or 'react' keywords)
-  if (lower.includes("->") || lower.includes("→") || lower.includes("reaction")) {
-    await visualizeReaction(userText, containerEl);
-    return;
-  }
-
-  // Case 2: Single molecule visualization
   if (
     lower.includes("visualize") ||
     lower.includes("visualisation") ||
     lower.includes("3d") ||
     lower.includes("structure")
-  ) {
-    let match =
-      userText.match(/visualize(?:\s+structure)?(?:\s+of)?\s+(.+)/i) ||
-      userText.match(/structure of\s+(.+)/i) ||
-      userText.match(/visualize\s+(.+)/i);
-    if (!match) return;
-    let name = (match[1] || "").trim().replace(/[?.!]+$/, "");
-    if (!name) return;
+  )
+    return visualizeMolecule(userText, container);
+}
 
-    const visWrap = document.createElement("div");
-    visWrap.style =
-      "display:block;margin-top:12px;border-radius:10px;overflow:hidden;background:rgba(255,255,255,0.95);padding:8px;";
-    const viewerDiv = document.createElement("div");
-    viewerDiv.style = "height:360px;width:100%;";
-    visWrap.appendChild(viewerDiv);
-    containerEl.parentNode.appendChild(visWrap);
+// ---------- Single Molecule ----------
+async function visualizeMolecule(userText, container) {
+  const match =
+    userText.match(/visualize(?:\s+structure)?(?:\s+of)?\s+(.+)/i) ||
+    userText.match(/structure of\s+(.+)/i);
+  if (!match) return;
+  let name = (match[1] || "").trim().replace(/[?.!]+$/, "");
+  const frame = document.createElement("div");
+  frame.style =
+    "margin-top:10px;background:#fff;border-radius:10px;padding:8px;";
+  const viewerDiv = document.createElement("div");
+  viewerDiv.style = "height:340px;width:100%;";
+  frame.appendChild(viewerDiv);
+  container.parentNode.appendChild(frame);
 
-    try {
-      const resp = await fetch(`${API_URL}/api/visualize`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ type: "pubchem-name", value: name }),
-      });
-      const json = await resp.json();
-      if (!json || json.error) {
-        viewerDiv.innerText =
-          "Visualization not available: " + (json?.error || "");
-        return;
-      }
-      const format = json.format || "sdf";
-      const raw = json.data || "";
-
-      const viewer = $3Dmol.createViewer(viewerDiv, { backgroundColor: "white" });
-      viewer.addModel(raw, format);
-      viewer.setStyle({}, { stick: {}, sphere: { scale: 0.25 } });
-      viewer.zoomTo();
-      viewer.render();
-      viewer.rotate(90);
-    } catch (err) {
-      console.error("visualize error", err);
-      viewerDiv.innerText = "Could not load 3D structure.";
-    }
+  try {
+    const r = await fetch(`${API_URL}/api/visualize`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ type: "pubchem-name", value: name }),
+    });
+    const j = await r.json();
+    if (j.error) throw new Error(j.error);
+    const viewer = $3Dmol.createViewer(viewerDiv, { backgroundColor: "white" });
+    viewer.addModel(j.data, j.format);
+    viewer.setStyle({}, { stick: {}, sphere: { scale: 0.25 } });
+    viewer.zoomTo();
+    viewer.render();
+  } catch (e) {
+    viewerDiv.textContent = "❌ Visualization failed: " + e.message;
   }
 }
 
-// 🧪 Reaction Visualization
-async function visualizeReaction(userText, containerEl) {
-  // Try to extract reactants and products
-  let match = userText.match(/(.+?)(?:->|→)(.+)/);
-  if (!match) {
-    // fallback heuristic
-    const reactionWords = userText.split("react").filter(Boolean);
-    if (reactionWords.length >= 2) {
-      match = [null, reactionWords[0], reactionWords[1]];
-    }
-  }
-  if (!match) return;
+// ---------- Reaction Visualization + Energy ----------
+async function visualizeReaction(userText, container) {
+  const m = userText.match(/(.+?)(?:->|→)(.+)/);
+  if (!m) return;
+  const reactantsText = m[1].replace(/balance|visualize|reaction/gi, "").trim();
+  const productsText = m[2].replace(/reaction|produce|form/gi, "").trim();
 
-  const reactantsText = match[1].replace(/balance|visualize|reaction|between/gi, "").trim();
-  const productsText = match[2].replace(/reaction|and|produce|form/gi, "").trim();
-
-  if (!reactantsText || !productsText) return;
-
-  // Helper to convert compound name to SMILES via PubChem REST
   async function nameToSmiles(name) {
     try {
-      const encoded = encodeURIComponent(name.trim());
-      const url = `https://pubchem.ncbi.nlm.nih.gov/rest/pug/compound/name/${encoded}/property/CanonicalSMILES/TXT`;
-      const resp = await fetch(url);
-      if (!resp.ok) return null;
-      const smiles = (await resp.text()).trim();
-      return smiles || null;
+      const r = await fetch(
+        `https://pubchem.ncbi.nlm.nih.gov/rest/pug/compound/name/${encodeURIComponent(
+          name
+        )}/property/CanonicalSMILES/TXT`
+      );
+      return r.ok ? (await r.text()).trim() : null;
     } catch {
       return null;
     }
   }
 
-  // Convert each compound (split by +)
-  async function convertSide(text) {
-    const parts = text.split("+").map((x) => x.trim()).filter(Boolean);
-    const smilesArr = [];
-    for (const p of parts) {
-      const s = await nameToSmiles(p);
-      if (s) smilesArr.push(s);
+  async function nameToEnthalpy(name) {
+    try {
+      const r = await fetch(
+        `https://pubchem.ncbi.nlm.nih.gov/rest/pug/compound/name/${encodeURIComponent(
+          name
+        )}/property/EnthalpyOfFormation/TXT`
+      );
+      if (!r.ok) return null;
+      const val = parseFloat((await r.text()).trim());
+      return isNaN(val) ? null : val;
+    } catch {
+      return null;
     }
-    return smilesArr.join(".");
   }
 
-  const reactantSmiles = await convertSide(reactantsText);
-  const productSmiles = await convertSide(productsText);
+  async function sideInfo(txt) {
+    const parts = txt.split("+").map((x) => x.trim());
+    let smiles = [];
+    let enthalpySum = 0;
+    for (const p of parts) {
+      const s = await nameToSmiles(p);
+      if (s) smiles.push(s);
+      const h = await nameToEnthalpy(p);
+      if (typeof h === "number") enthalpySum += h;
+    }
+    return { smiles: smiles.join("."), enthalpy: enthalpySum };
+  }
 
-  if (!reactantSmiles || !productSmiles) {
-    const warn = document.createElement("div");
-    warn.innerText = "⚠️ Could not identify compounds for reaction visualization.";
-    containerEl.parentNode.appendChild(warn);
+  const left = await sideInfo(reactantsText);
+  const right = await sideInfo(productsText);
+  if (!left.smiles || !right.smiles)
+    return container.insertAdjacentHTML(
+      "afterend",
+      `<div>⚠️ Could not find SMILES for reaction components.</div>`
+    );
+
+  const wrap = document.createElement("div");
+  wrap.style =
+    "display:flex;justify-content:space-between;align-items:center;gap:10px;margin-top:10px;background:#fff;padding:10px;border-radius:12px;";
+  const leftDiv = document.createElement("div"),
+    rightDiv = document.createElement("div");
+  leftDiv.style = rightDiv.style = "width:45%;height:300px;";
+  const mid = document.createElement("div");
+  mid.style = "width:8%;text-align:center;font-size:42px;";
+  wrap.append(leftDiv, mid, rightDiv);
+  container.parentNode.appendChild(wrap);
+
+  // Request 3D SDFs
+  const visResp = await fetch(`${API_URL}/api/visualize`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      type: "reaction",
+      value: { reactantSmiles: left.smiles, productSmiles: right.smiles },
+    }),
+  });
+  const vis = await visResp.json();
+  if (vis.error) {
+    leftDiv.textContent = rightDiv.textContent = vis.error;
     return;
   }
 
-  // Container for the two viewers
-  const wrap = document.createElement("div");
-  wrap.style =
-    "display:flex;justify-content:space-between;gap:8px;align-items:center;margin-top:12px;background:rgba(255,255,255,0.95);padding:8px;border-radius:10px;";
-  const leftDiv = document.createElement("div");
-  const rightDiv = document.createElement("div");
-  leftDiv.style = rightDiv.style = "width:48%;height:320px;";
-  wrap.appendChild(leftDiv);
-  wrap.appendChild(rightDiv);
-  containerEl.parentNode.appendChild(wrap);
+  const v1 = $3Dmol.createViewer(leftDiv, { backgroundColor: "white" });
+  v1.addModel(vis.data.left, "sdf");
+  v1.setStyle({}, { stick: {}, sphere: { scale: 0.25 } });
+  v1.zoomTo();
+  v1.render();
 
-  // Call backend /api/visualize type=reaction
-  try {
-    const resp = await fetch(`${API_URL}/api/visualize`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        type: "reaction",
-        value: { reactantSmiles, productSmiles },
-      }),
-    });
-    const json = await resp.json();
-    if (!json || json.error) {
-      leftDiv.innerText = rightDiv.innerText =
-        "Reaction visualization failed: " + (json?.error || "");
-      return;
+  const v2 = $3Dmol.createViewer(rightDiv, { backgroundColor: "white" });
+  v2.addModel(vis.data.right, "sdf");
+  v2.setStyle({}, { stick: {}, sphere: { scale: 0.25 } });
+  v2.zoomTo();
+  v2.render();
+
+  // ---------- Energy calculation ----------
+  const deltaH = right.enthalpy - left.enthalpy;
+  let direction, color, label;
+  if (!isNaN(deltaH)) {
+    if (deltaH < 0) {
+      direction = "down";
+      color = "red";
+      label = `Exothermic ΔH = ${deltaH.toFixed(1)} kJ/mol`;
+    } else if (deltaH > 0) {
+      direction = "up";
+      color = "dodgerblue";
+      label = `Endothermic ΔH = +${deltaH.toFixed(1)} kJ/mol`;
+    } else {
+      color = "gray";
+      label = "ΔH ≈ 0 (kJ/mol)";
     }
-    const { left, right } = json.data || {};
-    if (!left || !right) {
-      leftDiv.innerText = rightDiv.innerText =
-        "Reaction structures unavailable.";
-      return;
-    }
-
-    const v1 = $3Dmol.createViewer(leftDiv, { backgroundColor: "white" });
-    v1.addModel(left, "sdf");
-    v1.setStyle({}, { stick: {}, sphere: { scale: 0.25 } });
-    v1.zoomTo();
-    v1.render();
-
-    const v2 = $3Dmol.createViewer(rightDiv, { backgroundColor: "white" });
-    v2.addModel(right, "sdf");
-    v2.setStyle({}, { stick: {}, sphere: { scale: 0.25 } });
-    v2.zoomTo();
-    v2.render();
-
-    // Arrow indicator between them
     const arrow = document.createElement("div");
-    arrow.innerHTML = "&#x27A1;"; // →
-    arrow.style =
-      "font-size:48px;color:#0aa;text-align:center;width:4%;text-shadow:0 0 10px #0ff;";
-    wrap.insertBefore(arrow, rightDiv);
-  } catch (err) {
-    console.error("Reaction visualize error:", err);
-    leftDiv.innerText = rightDiv.innerText = "⚠️ Could not load reaction data.";
+    arrow.innerHTML =
+      direction === "down" ? "&#x2B07;" : direction === "up" ? "&#x2B06;" : "&#x2192;";
+    arrow.style = `color:${color};animation:float 1.5s infinite alternate;text-shadow:0 0 10px ${color};`;
+    mid.append(arrow);
+    const txt = document.createElement("div");
+    txt.textContent = label;
+    txt.style = `font-size:14px;color:${color};margin-top:6px;`;
+    mid.append(txt);
+  } else {
+    mid.innerHTML = "&#x27A1;";
   }
 }
 
-// Handle chat form
-form.addEventListener("submit", async (ev) => {
-  ev.preventDefault();
-  const prompt = promptEl.value.trim();
-  if (!prompt) return;
-
-  const userEl = appendMessage("You", prompt, "user");
+// ---------- Form submit ----------
+form.addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const q = promptEl.value.trim();
+  if (!q) return;
+  appendMessage("You", q, "user");
   promptEl.value = "";
-
-  const botContainer = appendMessage("Chem-Ed Genius", "Thinking...", "bot");
-
+  const botCont = appendMessage("Chem-Ed Genius", "Thinking...", "bot");
   try {
     const r = await fetch(`${API_URL}/api/chat`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ prompt }),
+      body: JSON.stringify({ prompt: q }),
     });
-    const json = await r.json();
-    const msg = json.message || json.error || "No answer.";
-    renderMarkdownInto(botContainer, msg);
-
-    await detectAndMaybeVisualize(prompt, botContainer);
+    const j = await r.json();
+    renderMarkdownInto(botCont, j.message || j.error || "No answer.");
+    await detectAndMaybeVisualize(q, botCont);
   } catch (err) {
-    console.error(err);
-    botContainer.innerText = "Server error. Try again later.";
+    botCont.textContent = "Server error: " + err.message;
   }
 });
+
+// ---------- simple arrow animation ----------
+const style = document.createElement("style");
+style.textContent = `@keyframes float {from{transform:translateY(0)}to{transform:translateY(-6px)}}`;
+document.head.append(style);
