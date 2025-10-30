@@ -1,42 +1,42 @@
-# backend/Dockerfile - fetches frontend from GitHub during build
+# ======================================
+# ✅ FINAL WORKING DOCKERFILE (Render OK)
+# ======================================
 FROM node:20-bullseye-slim
 
 WORKDIR /app
 
-# install deps required for downloading/unzipping
+# install minimal tools for downloading and unzipping
 RUN apt-get update && apt-get install -y --no-install-recommends \
     curl unzip ca-certificates \
-  && rm -rf /var/lib/apt/lists/*
+ && rm -rf /var/lib/apt/lists/*
 
-# copy backend package and install production deps
+# copy backend package files and install only production dependencies
 COPY package*.json ./
 RUN npm install --production
 
-# copy backend files (build context is backend/)
+# copy backend source files
 COPY . .
 
-# --- Fetch frontend from GitHub and copy into /app/frontend ---
-# Set repo and branch here (change only if your repo or branch differs)
+# --- Fetch frontend from GitHub and extract ---
 ARG REPO=smkammath/chem-ed-genius
 ARG BRANCH=main
 ENV REPO_ZIP=https://github.com/${REPO}/archive/refs/heads/${BRANCH}.zip
 
-# Download repo archive and extract only the frontend directory into /app/frontend
 RUN mkdir -p /tmp/repo \
+ && echo "⬇️ Downloading frontend from ${REPO_ZIP}" \
  && curl -fsSL "${REPO_ZIP}" -o /tmp/repo.zip \
  && unzip -q /tmp/repo.zip -d /tmp/repo \
- && # find extracted top-level folder (repo-branch)
-    EXTRACTED_DIR=$(ls -1 /tmp/repo | head -n1) \
- && if [ -d "/tmp/repo/${EXTRACTED_DIR}/frontend" ]; then \
-      mkdir -p /app/frontend && cp -r /tmp/repo/${EXTRACTED_DIR}/frontend/* /app/frontend/; \
+ && echo "📂 Extracting frontend directory..." \
+ && FOLDER=$(ls /tmp/repo | head -n1) \
+ && if [ -d "/tmp/repo/${FOLDER}/frontend" ]; then \
+      mkdir -p /app/frontend && cp -r /tmp/repo/${FOLDER}/frontend/* /app/frontend/; \
+      echo "✅ Frontend copied successfully."; \
     else \
-      echo "WARNING: frontend directory not found in repo zip"; \
+      echo "⚠️ Frontend directory not found in repo archive."; \
     fi \
  && rm -rf /tmp/repo /tmp/repo.zip
 
-# expose port
+# expose port and start
 ENV PORT=3000
 EXPOSE ${PORT}
-
-# run
 CMD ["node", "server.js"]
