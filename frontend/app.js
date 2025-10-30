@@ -31,27 +31,39 @@ chatForm.addEventListener("submit", async (e) => {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ prompt }),
     });
+
     const data = await response.json();
     const formatted = formatResponse(data.message);
-    appendMessage("Chem-Ed Genius", formatted, "bot");
+    appendMessage("Chem-Ed Genius", formatted, "bot", true);
     renderKaTeX();
     detectAndVisualize(formatted);
   } catch {
-    appendMessage("Chem-Ed Genius", "⚠️ Server error. Try again later.", "bot");
+    appendMessage("Chem-Ed Genius", "⚠️ Server error. Try again later.", "bot", false);
   }
 });
 
 /* ---------- Display Message ---------- */
-function appendMessage(sender, text, type) {
+function appendMessage(sender, text, type, closable = false) {
   const div = document.createElement("div");
   div.classList.add(type === "user" ? "user-message" : "bot-message");
   div.innerHTML = `<strong>${sender}:</strong> ${text}`;
+
+  if (closable) {
+    const closeBtn = document.createElement("button");
+    closeBtn.classList.add("close-btn");
+    closeBtn.innerText = "×";
+    closeBtn.onclick = () => div.remove();
+    div.appendChild(closeBtn);
+  }
+
   chatContainer.appendChild(div);
   chatContainer.scrollTop = chatContainer.scrollHeight;
 }
 
 /* ---------- Markdown Formatter ---------- */
 function formatResponse(text) {
+  // Clean excessive escaping (e.g., \ce{\ce{CH3OH}} → \ce{CH3OH})
+  text = text.replace(/\\ce{\\ce{(.*?)}}/g, "\\ce{$1}");
   return text
     .replace(/\n/g, "<br>")
     .replace(/\*\*(.*?)\*\*/g, "<b>$1</b>")
@@ -62,7 +74,6 @@ function formatResponse(text) {
 
 /* ---------- Formula Auto Detection ---------- */
 async function detectAndVisualize(text) {
-  // Capture \ce{...} and plain formulas like CH3OH
   const matches = [
     ...text.matchAll(/\\ce{([^}]*)}/g),
     ...text.matchAll(/\b([A-Z][a-z]?\d*){2,}\b/g),
@@ -81,14 +92,13 @@ async function visualizeMolecule(name) {
     viewerDiv.className = "mol-viewer";
     chatContainer.appendChild(viewerDiv);
 
-    const response = await fetch(`${API_URL}/api/visualize`, {
+    const resp = await fetch(`${API_URL}/api/visualize`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ molecule: name }),
     });
 
-    const { sdf } = await response.json();
-
+    const { sdf } = await resp.json();
     const viewer = $3Dmol.createViewer(viewerDiv, { backgroundColor: "white" });
     viewer.addModel(sdf, "sdf");
     viewer.setStyle({}, { stick: { radius: 0.15 }, sphere: { scale: 0.25 } });
