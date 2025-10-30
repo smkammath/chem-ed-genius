@@ -9,11 +9,12 @@ window.addEventListener("DOMContentLoaded", () => {
 
   function renderMath() {
     if (window.renderMathInElement) {
-      renderMathInElement(document.body, {
+      renderMathInElement(conversationDiv, {
         delimiters: [
           { left: "$$", right: "$$", display: true },
           { left: "$", right: "$", display: false },
         ],
+        throwOnError: false,
       });
     }
   }
@@ -41,7 +42,7 @@ window.addEventListener("DOMContentLoaded", () => {
     const loadingMsg = document.createElement("div");
     loadingMsg.classList.add("msg");
     loadingMsg.innerHTML =
-      "<div class='meta'><b>Chem-Ed Genius:</b></div><div class='body'>🧪Analysing the query...</div>";
+      "<div class='meta'><b>Chem-Ed Genius:</b></div><div class='body'>🧪 Analyzing your chemistry question...</div>";
     conversationDiv.appendChild(loadingMsg);
     conversationDiv.scrollTop = conversationDiv.scrollHeight;
 
