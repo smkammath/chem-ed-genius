@@ -4,18 +4,20 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Chem-Ed Genius 🧪</title>
+
+  <!-- ✅ Stylesheet -->
   <link rel="stylesheet" href="styles.css" />
 
-  <!-- MathJax for chemistry notation -->
+  <!-- ✅ MathJax for Chemistry Equations and LaTeX rendering -->
   <script id="MathJax-script" async
     src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js">
   </script>
 
-  <!-- 3Dmol.js for molecular visualization -->
+  <!-- ✅ 3Dmol.js for 3D molecule rendering -->
   <script src="https://3Dmol.csb.pitt.edu/build/3Dmol-min.js"></script>
 
   <script>
-    // Function to trigger MathJax rendering
+    // Ensures equations re-render dynamically after bot responses
     function renderMath() {
       if (window.MathJax) MathJax.typesetPromise();
     }
@@ -29,15 +31,21 @@
       <p>Explain. Visualize. Ace the exam — chemistry only.</p>
     </header>
 
-    <main id="chat-window"></main>
+    <main id="chat-window" class="chat-window">
+      <!-- Chat messages dynamically inserted here -->
+    </main>
 
     <footer>
-      <input id="user-input" type="text"
-             placeholder="Ask a chemistry question (e.g. 'Show 3D of CH3OH')" />
+      <input
+        id="user-input"
+        type="text"
+        placeholder="Ask a chemistry question (e.g. 'Explain CH3OH with 3D')"
+      />
       <button id="send-btn">Send</button>
     </footer>
   </div>
 
+  <!-- ✅ Main Chat Logic -->
   <script src="app.js"></script>
 </body>
 </html>
