@@ -1,37 +1,39 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="utf-8" />
-  <title>Chem-Ed Genius</title>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Chem-Ed Genius 🧪</title>
 
-  <!-- KaTeX for LaTeX rendering -->
-  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.7/dist/katex.min.css" />
-  <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.7/dist/katex.min.js"></script>
-  <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.7/dist/contrib/auto-render.min.js"
-    onload="renderMathInElement(document.body, {delimiters: [{left:'$$',right:'$$',display:true},{left:'$',right:'$',display:false}]});"></script>
-
-  <!-- 3Dmol.js for molecular visualization -->
-  <script src="https://3Dmol.org/build/3Dmol-min.js"></script>
-
+  <!-- Styles -->
   <link rel="stylesheet" href="styles.css" />
+
+  <!-- KaTeX + mhchem -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/katex.min.css">
+  <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/katex.min.js"></script>
+  <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/contrib/auto-render.min.js"></script>
+  <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/contrib/mhchem.min.js"></script>
+
+  <!-- 3Dmol.js for molecule display -->
+  <script src="https://3Dmol.org/build/3Dmol-min.js"></script>
 </head>
+
 <body>
-  <div class="app">
+  <div class="app-container">
     <header>
-      <h1>CHEM-ED GENIUS 🧪</h1>
-      <p>Explain. Visualize. Ace the exam — chemistry only.</p>
+      <h1>Chem-Ed Genius 🧪</h1>
+      <p>Explain. Visualize. Ace the exam — from 10th grade to college.</p>
     </header>
 
     <main>
-      <div id="chat" class="chat-box"></div>
-
+      <div id="chat-container"></div>
       <form id="chatForm">
-        <textarea id="prompt" placeholder="Ask: 'Explain hybridization' or 'Balance: C2H6 + O2 -> CO2 + H2O'"></textarea>
+        <textarea id="user-input" placeholder="Ask: 'Explain hybridization' or 'Balance C2H6 + O2 → CO2 + H2O'"></textarea>
         <button type="submit">Send</button>
       </form>
     </main>
   </div>
 
-  <script type="module" src="app.js"></script>
+  <script src="app.js"></script>
 </body>
 </html>
