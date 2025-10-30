@@ -1,22 +1,26 @@
-# ==============================
-#  CHEM-ED GENIUS BACKEND DOCKERFILE
-# ==============================
+# Use official Node.js image
+FROM node:20
 
-FROM node:20-alpine
-
+# Set working directory
 WORKDIR /app
 
-# Copy dependency files
+# Copy backend package files
 COPY package*.json ./
 
-# Install dependencies
+# Install production dependencies
 RUN npm install --production
 
-# Copy all source files
+# Copy backend files
 COPY . .
 
-# Expose Render port
+# --- IMPORTANT FIX ---
+# Copy frontend folder (one level up in repo) into the container
+# Render sets the build context to /backend, so we must copy manually
+COPY ../frontend ./frontend
+
+# Expose the app port
+ENV PORT=3000
 EXPOSE 3000
 
 # Start server
-CMD ["npm", "start"]
+CMD ["node", "server.js"]
