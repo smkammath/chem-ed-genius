@@ -1,0 +1,18 @@
+services:
+  - type: web
+    name: chem-ed-genius
+    env: docker
+    region: singapore
+    plan: free
+    rootDir: backend
+    dockerfilePath: backend/Dockerfile
+    dockerContext: .
+    autoDeploy: true
+    envVars:
+      - key: OPENAI_API_KEY
+        sync: false
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 3000
+    healthCheckPath: /healthz
