@@ -1,80 +1,96 @@
-const chatBox = document.getElementById("chat");
-const chatForm = document.getElementById("chatForm");
-const input = document.getElementById("promptInput");
-const modal = document.getElementById("viewerModal");
-const closeModal = document.getElementById("closeModal");
-const viewerDiv = document.getElementById("viewer");
-const viewerCID = document.getElementById("viewerCID");
-const downloadBtn = document.getElementById("downloadSdf");
-const fitBtn = document.getElementById("fitModel");
+const API_URL = "https://chem-ed-genius.onrender.com/api/chat"; // Adjust if needed
+const chatWindow = document.getElementById("chat-window");
+const userInput = document.getElementById("user-input");
+const sendBtn = document.getElementById("send-btn");
 
-let sdfData = null, cid = null, viewer = null;
-
-function append(role, msg) {
-  const div = document.createElement("div");
-  div.className = `msg ${role}`;
-  div.innerHTML = `<div class="bubble"><b>${role === "you" ? "You:" : "Chem-Ed Genius:"}</b> ${msg}</div>`;
-  chatBox.appendChild(div);
-  chatBox.scrollTop = chatBox.scrollHeight;
-}
-
-async function fetchJSON(url, body) {
-  try {
-    const res = await fetch(url, { method: "POST", headers: { "Content-Type": "application/json" }, body });
-    const txt = await res.text();
-    return JSON.parse(txt);
-  } catch (e) {
-    return { ok: false, error: "Invalid JSON received" };
-  }
-}
-
-chatForm.addEventListener("submit", async (e) => {
-  e.preventDefault();
-  const prompt = input.value.trim();
-  if (!prompt) return;
-  append("you", prompt);
-  input.value = "";
-  append("assistant", "<em>Thinking...</em>");
-
-  const data = await fetchJSON("/api/chat", JSON.stringify({ prompt }));
-  chatBox.lastChild.remove();
-  if (!data.ok) return append("assistant", "Error: " + data.error);
-  append("assistant", data.message);
-
-  const match = data.message.match(/\\ce\{([^}]+)\}/);
-  if (match) {
-    const mol = match[1];
-    const btn = document.createElement("button");
-    btn.textContent = "View 3D";
-    btn.onclick = () => visualize(mol);
-    chatBox.lastChild.querySelector(".bubble").appendChild(btn);
-  }
+sendBtn.addEventListener("click", sendMessage);
+userInput.addEventListener("keypress", (e) => {
+  if (e.key === "Enter") sendMessage();
 });
 
-async function visualize(molecule) {
-  append("assistant", `Fetching 3D for ${molecule}...`);
-  const data = await fetchJSON("/api/visualize", JSON.stringify({ molecule }));
-  if (!data.ok) return append("assistant", "Error: " + data.error);
-  sdfData = data.sdf; cid = data.cid;
-  openViewer();
+async function sendMessage() {
+  const text = userInput.value.trim();
+  if (!text) return;
+
+  addMessage("user", text);
+  userInput.value = "";
+  addMessage("bot", "Thinking...");
+
+  try {
+    const res = await fetch(API_URL, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ question: text }),
+    });
+
+    const data = await res.json();
+    chatWindow.removeChild(chatWindow.lastChild);
+
+    if (data.error) {
+      addMessage("bot", `⚠️ ${data.error}`);
+      return;
+    }
+
+    addMessage("bot", data.answer);
+
+    // If visualization info present
+    if (data.visualize3D) {
+      render3D(data.visualize3D);
+    }
+  } catch (err) {
+    chatWindow.removeChild(chatWindow.lastChild);
+    addMessage("bot", "Network error: Unable to connect to Chem-Ed backend.");
+  }
 }
 
-function openViewer() {
-  viewerCID.textContent = "CID: " + cid;
-  modal.classList.remove("hidden");
-  viewerDiv.innerHTML = "";
-  viewer = $3Dmol.createViewer(viewerDiv);
-  viewer.addModel(sdfData, "sdf");
-  viewer.setStyle({}, { stick: {}, sphere: { radius: 0.3 } });
+function addMessage(sender, text) {
+  const div = document.createElement("div");
+  div.classList.add(sender === "user" ? "user-message" : "bot-message");
+
+  // Add clickable 3D button if "View 3D" keyword found
+  if (text.includes("View 3D")) {
+    const parts = text.split("View 3D")[0];
+    div.innerHTML = `${parts}<button class="view3d-btn">View 3D</button>`;
+    div.querySelector(".view3d-btn").addEventListener("click", () => {
+      const mol = extractMolecule(parts);
+      if (mol) fetch3DStructure(mol);
+    });
+  } else {
+    div.innerHTML = text;
+  }
+
+  chatWindow.appendChild(div);
+  chatWindow.scrollTop = chatWindow.scrollHeight;
+  renderMath(); // 🔥 Re-render MathJax every time
+}
+
+function extractMolecule(text) {
+  const match = text.match(/[A-Z][a-z]?\d*/g);
+  return match ? match.join("") : null;
+}
+
+async function fetch3DStructure(molecule) {
+  addMessage("bot", `Fetching 3D for ${molecule}...`);
+
+  try {
+    const res = await fetch(
+      `https://pubchem.ncbi.nlm.nih.gov/rest/pug/compound/name/${molecule}/SDF?record_type=3d`
+    );
+    const sdf = await res.text();
+    render3D(sdf);
+  } catch {
+    addMessage("bot", "❌ Failed to fetch 3D structure.");
+  }
+}
+
+function render3D(sdf) {
+  const viewerDiv = document.createElement("div");
+  viewerDiv.id = "viewer3d";
+  chatWindow.appendChild(viewerDiv);
+
+  const viewer = $3Dmol.createViewer(viewerDiv, { backgroundColor: "white" });
+  viewer.addModel(sdf, "sdf");
+  viewer.setStyle({}, { stick: {}, sphere: { scale: 0.3 } });
   viewer.zoomTo();
   viewer.render();
 }
-closeModal.onclick = () => modal.classList.add("hidden");
-downloadBtn.onclick = () => {
-  const blob = new Blob([sdfData], { type: "chemical/x-mdl-sdfile" });
-  const a = document.createElement("a");
-  a.href = URL.createObjectURL(blob);
-  a.download = `molecule_${cid}.sdf`;
-  a.click();
-};
-fitBtn.onclick = () => viewer.zoomTo();
