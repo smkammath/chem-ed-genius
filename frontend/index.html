@@ -1,165 +1,37 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Chem-Ed Genius 🔬</title>
+<head>
+  <meta charset="utf-8" />
+  <title>Chem-Ed Genius</title>
 
-    <!-- ✅ KaTeX for Math Rendering -->
-    <link
-      rel="stylesheet"
-      href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css"
-    />
-    <script
-      defer
-      src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"
-    ></script>
-    <script
-      defer
-      src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js"
-    ></script>
+  <!-- KaTeX for LaTeX rendering -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.7/dist/katex.min.css" />
+  <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.7/dist/katex.min.js"></script>
+  <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.7/dist/contrib/auto-render.min.js"
+    onload="renderMathInElement(document.body, {delimiters: [{left:'$$',right:'$$',display:true},{left:'$',right:'$',display:false}]});"></script>
 
-    <!-- ✅ Markdown Parser -->
-    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+  <!-- 3Dmol.js for molecular visualization -->
+  <script src="https://3Dmol.org/build/3Dmol-min.js"></script>
 
-    <style>
-      body {
-        font-family: "Poppins", sans-serif;
-        background: url("./assets/chem.jpg") no-repeat center center fixed;
-        background-size: cover;
-        color: #fff;
-        display: flex;
-        justify-content: center;
-        align-items: center;
-        flex-direction: column;
-        height: 100vh;
-        margin: 0;
-      }
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <div class="app">
+    <header>
+      <h1>CHEM-ED GENIUS 🧪</h1>
+      <p>Explain. Visualize. Ace the exam — chemistry only.</p>
+    </header>
 
-      .container {
-        background: rgba(0, 0, 0, 0.75);
-        border-radius: 20px;
-        padding: 30px;
-        width: 90%;
-        max-width: 850px;
-        backdrop-filter: blur(10px);
-        box-shadow: 0 8px 25px rgba(0, 0, 0, 0.4);
-      }
-
-      h1 {
-        text-align: center;
-        color: #00eaff;
-        font-size: 2rem;
-        margin-bottom: 0.4em;
-      }
-
-      h2 {
-        text-align: center;
-        color: #cceeff;
-        font-weight: 400;
-        font-size: 1rem;
-        margin-bottom: 20px;
-      }
-
-      #conversation {
-        background: rgba(255, 255, 255, 0.97);
-        border-radius: 12px;
-        padding: 15px;
-        height: 400px;
-        overflow-y: auto;
-        color: #111;
-        scroll-behavior: smooth;
-      }
-
-      .msg {
-        margin-bottom: 15px;
-      }
-
-      .msg .meta {
-        font-weight: bold;
-        color: #0077ff;
-        margin-bottom: 4px;
-      }
-
-      .msg .body {
-        line-height: 1.6;
-        background: #f7fbff;
-        border-radius: 10px;
-        padding: 12px;
-        font-size: 1rem;
-        color: #000;
-      }
-
-      #chatForm {
-        margin-top: 15px;
-        display: flex;
-        gap: 10px;
-      }
-
-      #prompt {
-        flex: 1;
-        border-radius: 10px;
-        padding: 10px;
-        font-size: 1rem;
-        border: 1px solid #ccc;
-      }
-
-      #sendBtn {
-        background-color: #00bfff;
-        border: none;
-        border-radius: 10px;
-        color: #fff;
-        padding: 10px 20px;
-        cursor: pointer;
-        font-weight: bold;
-        transition: 0.3s;
-      }
-
-      #sendBtn:hover {
-        background-color: #0099cc;
-      }
-
-      .katex-display {
-        text-align: center;
-        margin: 10px 0;
-      }
-    </style>
-  </head>
-
-  <body>
-    <div class="container">
-      <h1>CHEM-ED GENIUS 🔬</h1>
-      <h2>Explain. Visualize. Ace the exam — from 10th grade to college.</h2>
-
-      <div>
-        <label for="grade">Grade / Level</label>
-        <select id="grade">
-          <option value="10th">10th</option>
-          <option value="11th">11th</option>
-          <option value="12th" selected>12th</option>
-          <option value="college">College</option>
-        </select>
-
-        <label for="mode">Mode</label>
-        <select id="mode">
-          <option value="Explain">Explain</option>
-          <option value="Visualize">Visualize</option>
-          <option value="Balance">Balance Equations</option>
-        </select>
-      </div>
-
-      <div id="conversation"></div>
+    <main>
+      <div id="chat" class="chat-box"></div>
 
       <form id="chatForm">
-        <textarea
-          id="prompt"
-          rows="2"
-          placeholder="Ask: 'Explain hybridization' or 'Balance: C2H6 + O2 -> CO2 + H2O'"
-        ></textarea>
-        <button type="submit" id="sendBtn">Send</button>
+        <textarea id="prompt" placeholder="Ask: 'Explain hybridization' or 'Balance: C2H6 + O2 -> CO2 + H2O'"></textarea>
+        <button type="submit">Send</button>
       </form>
-    </div>
+    </main>
+  </div>
 
-    <script src="app.js"></script>
-  </body>
+  <script type="module" src="app.js"></script>
+</body>
 </html>
