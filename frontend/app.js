@@ -1,4 +1,6 @@
-const API_URL = "/api/chat";
+// ✅ Use the full backend URL explicitly
+const API_URL = "https://chem-ed-genius.onrender.com/api/chat";
+
 const chatWindow = document.getElementById("chat-window");
 const userInput = document.getElementById("user-input");
 const sendBtn = document.getElementById("send-btn");
@@ -20,8 +22,12 @@ async function sendMessage() {
     const res = await fetch(API_URL, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ prompt: text }), // ✅ fixed key name
+      body: JSON.stringify({ prompt: text }),
     });
+
+    if (!res.ok) {
+      throw new Error(`Server responded with status ${res.status}`);
+    }
 
     const data = await res.json();
     chatWindow.removeChild(chatWindow.lastChild);
@@ -38,7 +44,8 @@ async function sendMessage() {
     }
   } catch (err) {
     chatWindow.removeChild(chatWindow.lastChild);
-    addMessage("bot", "❌ Server error: Unable to connect.");
+    console.error("❌ Connection error:", err);
+    addMessage("bot", "❌ Server error: Unable to connect to backend.");
   }
 }
 
