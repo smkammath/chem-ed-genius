@@ -1,234 +1,218 @@
-// =========================================
-// 🌟 CHEM-ED GENIUS — Backend Server
-// =========================================
+/**
+ * server.js
+ * Backend for Chem-Ed Genius
+ *
+ * - /api/chat   POST { prompt } -> returns JSON { message }
+ * - /api/visualize POST { type, value, mode? } -> returns { format, data } for 3Dmol.js
+ *
+ * Requirements:
+ *  - Node 18+ (global fetch available)
+ *  - npm install express cors body-parser dotenv openai
+ *  - Put your OpenAI key into OPENAI_API_KEY (env)
+ *
+ * Place your chemistry keywords (one per line) in backend/chem_keywords.txt
+ */
 
 import express from "express";
 import cors from "cors";
 import bodyParser from "body-parser";
-import fetch from "node-fetch"; // only if Node < 20
-import OpenAI from "openai";
+import dotenv from "dotenv";
+import fs from "fs";
+import path from "path";
+import { OpenAI } from "openai";
+
+dotenv.config();
 
 const app = express();
 app.use(cors());
-app.use(bodyParser.json());
+app.use(bodyParser.json({ limit: "1mb" }));
 
+// Read keywords from file
+const KEYWORDS_PATH = path.join(process.cwd(), "chem_keywords.txt");
+let chemKeywords = [];
+try {
+  const raw = fs.readFileSync(KEYWORDS_PATH, "utf8");
+  chemKeywords = raw
+    .split(/\r?\n/)
+    .map((line) => line.trim().toLowerCase())
+    .filter(Boolean);
+  console.log(`Loaded ${chemKeywords.length} chemistry keywords.`);
+} catch (err) {
+  console.warn(
+    "chem_keywords.txt not found or unreadable. Please create backend/chem_keywords.txt and paste your list (one term per line)."
+  );
+}
+
+// Build a regex to test question relevance (word boundary)
+const chemRegex = new RegExp(
+  "\\b(" + chemKeywords.map((k) => escapeRegex(k)).join("|") + ")\\b",
+  "i"
+);
+
+function escapeRegex(s) {
+  return s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+function isChemistryRelated(text) {
+  if (!text || !chemKeywords.length) return false;
+  // quick lower-case test for single-word keywords
+  return chemRegex.test(text);
+}
+
+// Setup OpenAI
+if (!process.env.OPENAI_API_KEY) {
+  console.warn("OPENAI_API_KEY is not set. Set it in env before using /api/chat.");
+}
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
 });
 
-// ===========================================
-// 🔬 Section A — Chemistry keyword matcher
-// ===========================================
-function isChemistryRelated(question) {
-  const chemKeywords = [
-    // --- Core baseline ---
-    "atom","molecule","compound","reaction","oxidation","bond",
-    "acid","base","ion","electron","valence","hybridization",
-    "chemical","equation","balance","formula","structure",
-    "organic","inorganic","enthalpy","chemistry",
-
-    // --- Extended comprehensive list ---
-    "absolute alcohol","absolute error","absolute temperature","absolute uncertainty","absolute zero",
-    "absorbance","absorption","absorption spectroscopy","absorption spectrum","absorptivity",
-    "acetals","acetylation","acid anhydride","acid-base indicator","acid-base titration",
-    "acid dissociation constant","acidic solution","actinides","actinium","activated complex",
-    "activation energy","active transport","activity series","actual yield","acute health effect",
-    "acyl group","acylation","adsorption","addition reaction","adulterant","ai chemistry","aether","air",
-    "alcohol","alcohols","aldehyde","aldol reaction","aliphatic","aliphatic amino acid","aliphatic compound",
-    "aliphatic hydrocarbon","alkali metal","alkaline","alkalinity","alkene","alkenyl group","alkoxide",
-    "alkoxy group","allotrope","alloy","alpha decay","alpha radiation","aluminum","aluminium","amalgam",
-    "amide","aminals","amine","amine salts","amino acid","amorphous","amphiprotic","amphoteric",
-    "amphoteric oxide","analytical chemistry","analytical laboratory","analytical testing","angstrom",
-    "angular momentum quantum number","anhydride","anhydrous","anion","anode","anti-markovnikov addition",
-    "anti-periplanar","antiaromaticity","antibonding orbital","antimony","aqua regia","aqueous",
-    "aqueous solution","argon","aromatic compound","aromaticity","arsenic","aryl","asymmetric synthesis",
-    "astatine","atomic mass","atomic mass unit","atomic number","atomic radius","atomic solid","atomic volume",
-    "atomic weight","atmosphere","atp","aufbau principle","austenite","avogadro’s law","avogadro’s number",
-    "azides","azeotrope","azimuthal quantum number",
-
-    "back titration","balanced equation","balmer series","background radiation","barium","barometer",
-    "base anhydride","base metal","basic","beer’s law","benzene derivatives","beryllium","beta decay",
-    "beta particle","binary acid","binary compound","binding energy","biochemistry","bismuth","boiling point",
-    "bond energy","boron","boyle’s law","bromine","brønsted–lowry acid","brønsted–lowry base","buffer",
-
-    "cadmium","calcium","calorie","calorimeter","capillary action","carbamates","carbocation","carbon",
-    "carbonate","carbonyl","carboxyl group","carboxylic acid","catalyst","cation","celsius","cerium","cesium",
-    "chain reaction","charge","charles’s law","chelate","chemical analysis","chemical change","chemical energy",
-    "chemical equilibrium","chemical kinetics","chemiluminescence","chromatography","chlorine","chromium",
-    "closed system","cobalt","colligative properties","colloid","combination reaction","combustion",
-    "common-ion effect","complex ion","concentration","condensation","coordinate bond","coordination compound",
-    "copper","corrosion","covalent bond","crystal","crystallize","current","custom synthesis",
-
-    "dalton’s law","de broglie equation","decomposition reaction","deflagration","dehydration reaction",
-    "delocalized electron","density","deposition","diffusion","dipole","dipole moment","displacement reaction",
-    "distillation","double bond","dry ice","dynamic equilibrium","dysprosium",
-
-    "effective nuclear charge","effervescence","einsteinium","electrochemistry","electrolysis",
-    "electrolyte","electrolytic cell","electron affinity","electron configuration","electronegativity",
-    "element","empirical formula","endothermic","energy","enthalpy","entropy","enzyme","equilibrium constant",
-    "ester","ether","evaporation","exothermic","exothermic reaction",
-
-    "faraday constant","fatty acid","fission","flame test","fluorescence","fluorine","free radical",
-    "freezing point","fusion",
-
-    "gas","gay-lussac’s law","germanium","gibbs free energy","gold","grignard reaction","ground state",
-
-    "haber process","half-life","halide","halogen","heat capacity","helium","henry’s law","hess’s law",
-    "heterogeneous","homogeneous","hydration","hydrocarbon","hydrogen","hydrogen bond","hydrolysis",
-    "hydroxyl group","hypothesis",
-
-    "ideal gas law","immiscible","indicator","industrial chemistry","ionic bond","ionization energy",
-    "isomer","isotopes","iupac","joule","kelvin","ketone","kinetic energy","lanthanides","lead",
-    "le chatelier’s principle","lewis acid","lewis base","ligand","limiting reactant","lithium",
-    "london dispersion force","magnesium","manganese","mass","matter","melting point","metal","mixture",
-    "molar mass","mole","molecular formula","molecular orbital","molecule","monomer","neon","neutron",
-    "nickel","nitrogen","noble gas","nonpolar","nuclear fission","nucleophile","nucleophilicity",
-    "nucleus","octet rule","open system","orbital","organic compound","oxidation","oxide","oxygen",
-    "palladium","paramagnetism","periodic table","ph","phosphorus","photon","pi bond","planck’s constant",
-    "polar bond","polymer","polymerization","potassium","precipitate","pressure","product","proton",
-    "quantum number","radioactivity","raoult’s law","reaction rate","reactant","reagent","redox reaction",
-    "reduction","resonance","rhodium","rna","salt","samarium","scandium","science","scientific method",
-    "selenium","sigma bond","single displacement reaction","sodium","solid","solubility","solute","solution",
-    "solvent","specific heat","spectroscopy","spin quantum number","standard solution","stoichiometry",
-    "strong acid","strong base","sublimation","substitution reaction","sulfur","surface tension",
-    "synthesis reaction","tantalum","temperature","theoretical yield","thermodynamics","thiol","thorium",
-    "tin","titanium","titration","transition metal","triple point","tungsten","ultraviolet radiation",
-    "unit","unsaturated","uranium","valence bond theory","valence electron","vapor pressure","vsepr",
-    "water","wavelength","weak acid","weak base","xenon","x-rays","yield","ytterbium","yttrium",
-    "zinc","zirconium","zwitterion",
-  ];
-
-  const lowerQ = question.toLowerCase();
-  const hasSymbols = /[A-Z][a-z]?\d*/.test(question);
-  return chemKeywords.some((word) => lowerQ.includes(word)) || hasSymbols;
+// Utility: sanitize model output (no HTML, prefer Markdown)
+function sanitizeResponse(text) {
+  if (!text) return "";
+  // Remove script/style tags and reduce malicious html
+  return text
+    .replace(/<\s*\/?script[^>]*>/gi, "")
+    .replace(/<\s*style[^>]*>[\s\S]*?<\s*\/\s*style>/gi, "")
+    .replace(/<\/?[^>]+(>|$)/g, "") // strip tags; we expect markdown/latex
+    .trim();
 }
 
-// ===========================================
-// 🔹 Chemistry Q&A Endpoint (/api/chat)
-// ===========================================
+// ----------------- Chat endpoint -----------------
 app.post("/api/chat", async (req, res) => {
-  const { prompt } = req.body;
-  if (!prompt) return res.status(400).json({ message: "No question provided." });
+  const { prompt } = req.body || {};
+  if (!prompt || typeof prompt !== "string") {
+    return res.status(400).json({ error: "Missing prompt." });
+  }
 
+  // Check scope
   if (!isChemistryRelated(prompt)) {
-    return res.json({
-      message:
-        "⚠️ I'm Chem-Ed Genius 🔬 — I only answer chemistry-related questions (atoms, molecules, reactions, bonding, and chemical engineering).",
-    });
+    // Out of scope message
+    const outMsg =
+      "⚠️ I'm Chem-Ed Genius — I only answer chemistry-related topics: atoms, molecules, reactions, bonding, chemical engineering, spectroscopy, formulas, balancing, and related subjects. Please ask a chemistry question.";
+    return res.json({ message: outMsg });
   }
 
   try {
-    const response = await openai.chat.completions.create({
-      model: "gpt-4o-mini",
+    // Use OpenAI ChatCompletion
+    // Provide system instruction to respond in Markdown, allow Latex (KaTeX)
+    const systemPrompt = `You are Chem-Ed Genius, a concise helpful chemistry tutor. Answer the user's chemistry question clearly and in structured Markdown.
+- Use headings (###) for sections.
+- Use bullet lists and numbered steps for procedures.
+- For chemical equations, prefer LaTeX inline (e.g., $\\ce{H2 + O2 -> H2O}$ or simple $C_2H_6 + O_2 \\to CO_2 + H2O$).
+- If the user asks for visualization, do not attempt to render images — instead include a short line like "Visualize: <compound>" or "Visualize-Reaction: <smiles1>-><smiles2>" if you can provide a canonical name or identifiers (PubChem name or PDB ID).
+- Avoid including raw HTML tags in your output. Output must be plain Markdown text with LaTeX allowed.`;
+
+    const userPrompt = `User: ${prompt}\n\nPlease answer.`;
+
+    const completion = await openai.chat.completions.create({
+      model: "gpt-4o-mini", // or your preferred model available on your account
       messages: [
-        {
-          role: "system",
-          content: `
-          You are Chem-Ed Genius, an expert chemistry tutor.
-          You only answer chemistry-related questions.
-          Use KaTeX-compatible LaTeX for chemical equations (inside $ or $$).
-          Example: "To balance $$C_2H_6 + O_2 \\rightarrow CO_2 + H_2O$$"
-          No \\text{} wrappers for elements.
-          Keep format clean: Markdown + KaTeX.`,
-        },
-        { role: "user", content: prompt },
+        { role: "system", content: systemPrompt },
+        { role: "user", content: userPrompt },
       ],
-      temperature: 0.6,
-      max_tokens: 900,
+      temperature: 0.1,
+      max_tokens: 800,
     });
 
-    res.json({ message: response.choices[0].message.content });
-  } catch (error) {
-    console.error(error);
-    res.status(500).json({ message: "Server error. Please try again later." });
+    const raw = completion.choices?.[0]?.message?.content ?? "";
+    const clean = sanitizeResponse(raw);
+
+    return res.json({ message: clean });
+  } catch (err) {
+    console.error("OpenAI error:", err);
+    return res.status(500).json({ error: "OpenAI error" });
   }
 });
 
-// ===========================================
-// 🔹 3D Visualization Endpoint (/api/visualize)
-// ===========================================
-async function fetchPubChemSdfByName(name) {
-  const url3d = `https://pubchem.ncbi.nlm.nih.gov/rest/pug/compound/name/${encodeURIComponent(name)}/SDF?record_type=3d`;
-  let resp = await fetch(url3d);
-  if (resp.ok) return { format: "sdf", data: await resp.text() };
-
-  const url2d = `https://pubchem.ncbi.nlm.nih.gov/rest/pug/compound/name/${encodeURIComponent(name)}/SDF`;
-  resp = await fetch(url2d);
-  if (resp.ok) return { format: "sdf", data: await resp.text() };
-
-  throw new Error("PubChem: Not found");
-}
-
-async function fetchPubChemSdfByCid(cid) {
-  const url3d = `https://pubchem.ncbi.nlm.nih.gov/rest/pug/compound/cid/${encodeURIComponent(cid)}/SDF?record_type=3d`;
-  let resp = await fetch(url3d);
-  if (resp.ok) return { format: "sdf", data: await resp.text() };
-
-  const url2d = `https://pubchem.ncbi.nlm.nih.gov/rest/pug/compound/cid/${encodeURIComponent(cid)}/SDF`;
-  resp = await fetch(url2d);
-  if (resp.ok) return { format: "sdf", data: await resp.text() };
-
-  throw new Error("PubChem: CID not found");
-}
-
-async function fetchPdb(pdbId) {
-  const id = pdbId.trim().toUpperCase();
-  const url = `https://files.rcsb.org/download/${id}.pdb`;
-  const resp = await fetch(url);
-  if (!resp.ok) throw new Error("PDB not found");
-  const pdbText = await resp.text();
-  return { format: "pdb", data: pdbText };
-}
-
-async function generateSdfFromSmilesWithRdkit(smiles) {
-  const rdkitUrl = process.env.RDKIT_URL;
-  if (!rdkitUrl) throw new Error("RDKit URL not configured (optional).");
-
-  const url = rdkitUrl.replace(/\/$/, "") + "/smiles_to_sdf";
-  const resp = await fetch(url, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ smiles }),
-  });
-
-  if (!resp.ok) throw new Error("RDKit server conversion failed.");
-  return { format: "sdf", data: await resp.text() };
-}
-
+// ----------------- Visualize endpoint -----------------
+// POST { type: 'pubchem-name' | 'pdb' | 'smiles', value: string, mode?: 'reaction' }
+// returns { format: 'sdf'|'pdb'|'mol' ,'data': 'raw file string' }
 app.post("/api/visualize", async (req, res) => {
-  const { type, value } = req.body || {};
-  if (!type || !value)
-    return res.status(400).json({ error: "type & value required" });
+  const { type, value, mode } = req.body || {};
+  if (!type || !value) return res.status(400).json({ error: "Missing type/value" });
 
   try {
-    if (type === "pubchem-name") return res.json(await fetchPubChemSdfByName(value));
-    if (type === "pubchem-cid") return res.json(await fetchPubChemSdfByCid(value));
-    if (type === "pdb") return res.json(await fetchPdb(value));
-
-    if (type === "smiles") {
-      if (process.env.RDKIT_URL)
-        return res.json(await generateSdfFromSmilesWithRdkit(value));
-
-      // fallback: PubChem lookup
-      const lookup = `https://pubchem.ncbi.nlm.nih.gov/rest/pug/compound/smiles/${encodeURIComponent(value)}/cids/JSON`;
-      const r = await fetch(lookup);
-      if (r.ok) {
-        const json = await r.json();
-        const cids = json?.IdentifierList?.CID;
-        if (cids?.length) return res.json(await fetchPubChemSdfByCid(cids[0]));
+    if (type === "pubchem-name") {
+      // Try to fetch 3D SDF for name via PubChem PUG REST
+      const name = encodeURIComponent(value);
+      // First try 3D SDF
+      let url = `https://pubchem.ncbi.nlm.nih.gov/rest/pug/compound/name/${name}/SDF?record_type=3d`;
+      let r = await fetch(url);
+      if (!r.ok) {
+        // try 2D SDF
+        url = `https://pubchem.ncbi.nlm.nih.gov/rest/pug/compound/name/${name}/SDF`;
+        r = await fetch(url);
       }
-      throw new Error("Could not convert SMILES to 3D (no RDKit server).");
-    }
+      if (!r.ok) {
+        return res.status(404).json({ error: "Not found on PubChem" });
+      }
+      const sdf = await r.text();
+      return res.json({ format: "sdf", data: sdf });
+    } else if (type === "pdb") {
+      const pdbId = value.trim().toUpperCase();
+      const r = await fetch(`https://files.rcsb.org/download/${pdbId}.pdb`);
+      if (!r.ok) return res.status(404).json({ error: "PDB not found" });
+      const pdb = await r.text();
+      return res.json({ format: "pdb", data: pdb });
+    } else if (type === "smiles") {
+      // convert SMILES to SDF via PubChem (submit identifier)
+      const smiles = encodeURIComponent(value);
+      // PubChem Identifier Exchange: get CID from SMILES
+      const fetchCid = await fetch(
+        `https://pubchem.ncbi.nlm.nih.gov/rest/pug/compound/smiles/${smiles}/cids/TXT`
+      );
+      if (!fetchCid.ok) return res.status(404).json({ error: "SMILES not found" });
+      const cid = (await fetchCid.text()).split(/\r?\n/)[0].trim();
+      if (!cid) return res.status(404).json({ error: "CID not found" });
+      const sdfResp = await fetch(
+        `https://pubchem.ncbi.nlm.nih.gov/rest/pug/compound/cid/${cid}/SDF?record_type=3d`
+      );
+      const sdf = await sdfResp.text();
+      return res.json({ format: "sdf", data: sdf });
+    } else if (type === "reaction") {
+      // Reaction visualization: expects { value: { reactantSmiles: "...", productSmiles: "..." } }
+      // We will return separate sdf/pdb for left/right if available.
+      const { reactantSmiles, productSmiles } = value || {};
+      if (!reactantSmiles || !productSmiles)
+        return res.status(400).json({ error: "Missing reactantSmiles/productSmiles" });
 
-    res.status(400).json({ error: "Unknown visualization type." });
+      const left = await fetchSmilesAsSDF(reactantSmiles);
+      const right = await fetchSmilesAsSDF(productSmiles);
+      return res.json({ format: "reaction", data: { left, right } });
+    } else {
+      return res.status(400).json({ error: "Unsupported visualize type" });
+    }
   } catch (err) {
-    console.error("Visualization error:", err);
-    res.status(500).json({ error: err.message });
+    console.error("visualize error:", err);
+    return res.status(500).json({ error: "Visualization fetch error" });
   }
 });
 
-// ===========================================
-// 🚀 Server Startup
-// ===========================================
+async function fetchSmilesAsSDF(smiles) {
+  // Convert SMILES -> CID -> SDF (PubChem)
+  const s = encodeURIComponent(smiles);
+  const fetchCid = await fetch(
+    `https://pubchem.ncbi.nlm.nih.gov/rest/pug/compound/smiles/${s}/cids/TXT`
+  );
+  if (!fetchCid.ok) return null;
+  const cid = (await fetchCid.text()).split(/\r?\n/)[0].trim();
+  if (!cid) return null;
+  const sdfResp = await fetch(
+    `https://pubchem.ncbi.nlm.nih.gov/rest/pug/compound/cid/${cid}/SDF?record_type=3d`
+  );
+  if (!sdfResp.ok) {
+    const sdfResp2 = await fetch(
+      `https://pubchem.ncbi.nlm.nih.gov/rest/pug/compound/cid/${cid}/SDF`
+    );
+    if (!sdfResp2.ok) return null;
+    return await sdfResp2.text();
+  }
+  return await sdfResp.text();
+}
+
+// health check
+app.get("/healthz", (_, res) => res.send("ok"));
+
 const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => console.log(`✅ Chem-Ed Genius backend running on port ${PORT}`));
+app.listen(PORT, () => console.log(`✅ Server running on port ${PORT}`));
