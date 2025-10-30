@@ -1,38 +1,77 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Chem-Ed Genius 🧪</title>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Chem-Ed Genius</title>
+
+  <!-- KaTeX (render math) -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/katex.min.css" integrity="" crossorigin="anonymous">
+  <script src="https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/katex.min.js"></script>
+  <!-- mhchem extension (for \ce) -->
+  <script src="https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/contrib/mhchem.min.js"></script>
+
+  <!-- 3Dmol viewer -->
+  <script src="https://3Dmol.csb.pitt.edu/build/3Dmol-min.js"></script>
 
   <link rel="stylesheet" href="styles.css" />
-
-  <!-- KaTeX + mhchem -->
-  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/katex.min.css">
-  <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/katex.min.js"></script>
-  <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/contrib/auto-render.min.js"></script>
-  <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/contrib/mhchem.min.js"></script>
-
-  <!-- 3Dmol.js -->
-  <script src="https://3Dmol.org/build/3Dmol-min.js"></script>
 </head>
-
 <body>
-  <div class="app-container">
-    <header>
-      <h1>Chem-Ed Genius 🧪</h1>
-      <p>Explain. Visualize. Ace the exam — from 10th grade to college.</p>
+  <div id="app">
+    <header class="topbar">
+      <div class="logo-area">
+        <h1>Chem-Ed Genius <span class="emoji">🧪</span></h1>
+        <p class="subtitle">Explain. Visualize. Ace the exam — chemistry only.</p>
+      </div>
     </header>
 
-    <main>
-      <div id="chat-container"></div>
-      <form id="chatForm">
-        <textarea id="user-input" placeholder="Ask: 'Explain hybridization' or 'Balance C2H6 + O2 → CO2 + H2O'"></textarea>
-        <button type="submit">Send</button>
+    <main class="main-wrap">
+      <section class="controls">
+        <label>Grade / Level
+          <select id="grade">
+            <option>10th</option>
+            <option>11th</option>
+            <option selected>12th</option>
+            <option>College</option>
+          </select>
+        </label>
+
+        <label>Mode
+          <select id="mode">
+            <option>Explain</option>
+            <option>Visualize</option>
+            <option>Balance</option>
+          </select>
+        </label>
+      </section>
+
+      <section id="chat" class="chat-area" aria-live="polite">
+        <!-- chat messages appended here -->
+      </section>
+
+      <form id="chatForm" class="chat-form" autocomplete="off">
+        <input id="promptInput" name="prompt" placeholder="Ask: 'Explain hybridization' or 'Balance: C2H6 + O2 -> CO2 + H2O'" />
+        <button type="submit" id="sendBtn">Send</button>
       </form>
     </main>
   </div>
 
-  <script src="app.js"></script>
+  <!-- 3D viewer modal -->
+  <div id="viewerModal" class="modal hidden" role="dialog" aria-modal="true" aria-hidden="true">
+    <div class="modal-content">
+      <button id="modalClose" class="modal-close" aria-label="Close viewer">✕</button>
+      <div id="viewerToolbar" class="viewer-toolbar">
+        <strong id="viewerTitle">3D Viewer</strong>
+        <span id="viewerCID" class="viewer-cid"></span>
+      </div>
+      <div id="viewer" style="width:100%; height:480px;"></div>
+      <div class="viewer-actions">
+        <button id="downloadSdf" class="btn small">Download SDF</button>
+        <button id="fitModel" class="btn small">Fit Model</button>
+      </div>
+    </div>
+  </div>
+
+  <script type="module" src="app.js"></script>
 </body>
 </html>
