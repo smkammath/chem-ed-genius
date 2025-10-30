@@ -41,7 +41,7 @@ window.addEventListener("DOMContentLoaded", () => {
     const loadingMsg = document.createElement("div");
     loadingMsg.classList.add("msg");
     loadingMsg.innerHTML =
-      "<div class='meta'><b>Chem-Ed Genius:</b></div><div class='body'>🧪 Balancing your chemical equation...</div>";
+      "<div class='meta'><b>Chem-Ed Genius:</b></div><div class='body'>Sorry, I am trained to answer Chemistry / Chemical related topics...</div>";
     conversationDiv.appendChild(loadingMsg);
     conversationDiv.scrollTop = conversationDiv.scrollHeight;
 
