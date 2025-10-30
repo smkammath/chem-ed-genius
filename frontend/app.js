@@ -1,4 +1,4 @@
-const API_URL = "https://chem-ed-genius.onrender.com/api/chat"; // Adjust if needed
+const API_URL = "/api/chat";
 const chatWindow = document.getElementById("chat-window");
 const userInput = document.getElementById("user-input");
 const sendBtn = document.getElementById("send-btn");
@@ -14,13 +14,13 @@ async function sendMessage() {
 
   addMessage("user", text);
   userInput.value = "";
-  addMessage("bot", "Thinking...");
+  addMessage("bot", "🧠 Thinking...");
 
   try {
     const res = await fetch(API_URL, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ question: text }),
+      body: JSON.stringify({ prompt: text }), // ✅ fixed key name
     });
 
     const data = await res.json();
@@ -33,13 +33,12 @@ async function sendMessage() {
 
     addMessage("bot", data.answer);
 
-    // If visualization info present
     if (data.visualize3D) {
       render3D(data.visualize3D);
     }
   } catch (err) {
     chatWindow.removeChild(chatWindow.lastChild);
-    addMessage("bot", "Network error: Unable to connect to Chem-Ed backend.");
+    addMessage("bot", "❌ Server error: Unable to connect.");
   }
 }
 
@@ -47,7 +46,6 @@ function addMessage(sender, text) {
   const div = document.createElement("div");
   div.classList.add(sender === "user" ? "user-message" : "bot-message");
 
-  // Add clickable 3D button if "View 3D" keyword found
   if (text.includes("View 3D")) {
     const parts = text.split("View 3D")[0];
     div.innerHTML = `${parts}<button class="view3d-btn">View 3D</button>`;
@@ -61,7 +59,7 @@ function addMessage(sender, text) {
 
   chatWindow.appendChild(div);
   chatWindow.scrollTop = chatWindow.scrollHeight;
-  renderMath(); // 🔥 Re-render MathJax every time
+  renderMath();
 }
 
 function extractMolecule(text) {
@@ -70,8 +68,7 @@ function extractMolecule(text) {
 }
 
 async function fetch3DStructure(molecule) {
-  addMessage("bot", `Fetching 3D for ${molecule}...`);
-
+  addMessage("bot", `Fetching 3D model for ${molecule}...`);
   try {
     const res = await fetch(
       `https://pubchem.ncbi.nlm.nih.gov/rest/pug/compound/name/${molecule}/SDF?record_type=3d`
