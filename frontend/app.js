@@ -1,4 +1,4 @@
-// frontend/app.js (ES module)
+// frontend/app.js (overwrite file with this)
 const chatArea = document.getElementById("chat");
 const chatForm = document.getElementById("chatForm");
 const promptInput = document.getElementById("promptInput");
@@ -14,18 +14,15 @@ let currentSdf = null;
 let currentCid = null;
 let glViewer = null;
 
-// utility: escape HTML
-function esc(s) {
-  return String(s || "").replace(/[&<>"']/g, (m) => ({ "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[m]));
-}
+// helpers
+const esc = s => String(s || "").replace(/[&<>"']/g, m => ({ "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[m]));
 
-// render LaTeX inline/display using KaTeX for any $...$ or $$...$$ patterns
+// katex rendering helpers (unchanged)
 function renderMathInElementSafe(container) {
-  // inline $...$ (non-greedy)
-  container.querySelectorAll("span.katex-placeholder").forEach(el => {
+  container.querySelectorAll("span.katex-placeholder, div.katex-placeholder").forEach(el => {
     const latex = el.dataset.latex;
     try {
-      const html = katex.renderToString(latex, { throwOnError:false, trust: true, macros: {"\\ce": "\\ce"} });
+      const html = katex.renderToString(latex, { throwOnError:false, trust: true });
       el.outerHTML = html;
     } catch (err) {
       el.textContent = latex;
@@ -33,34 +30,25 @@ function renderMathInElementSafe(container) {
   });
 }
 
-// Convert raw assistant text into safe HTML with katex placeholders
 function formatAssistantText(raw) {
-  // escape first
   let s = esc(raw);
-
-  // Convert $$...$$ -> display math block
-  s = s.replace(/\$\$([\s\S]+?)\$\$/g, (m, latex) => {
-    // placeholder span so we can render with katex later
-    return `<div class="display-math katex-placeholder" data-latex="${esc(latex.trim())}"></div>`;
-  });
-
-  // Convert inline $...$ -> span placeholder
-  s = s.replace(/\$([^\$]+?)\$/g, (m, latex) => {
-    return `<span class="katex-placeholder" data-latex="${esc(latex.trim())}"></span>`;
-  });
-
-  // Convert newlines to <br> (preserve paragraphs)
-  s = s.replace(/\n{2,}/g, "</p><p>").replace(/\n/g, "<br/>");
+  s = s.replace(/\$\$([\s\S]+?)\$\$/g, (m, latex) => `<div class="display-math katex-placeholder" data-latex="${esc(latex.trim())}"></div>`);
+  s = s.replace(/\$([^\$]+?)\$/g, (m, latex) => `<span class="katex-placeholder" data-latex="${esc(latex.trim())}"></span>`);
+  s = s.replace(/\n{2,}/g,"</p><p>").replace(/\n/g,"<br/>");
   s = `<p>${s}</p>`;
-
-  // Also convert simple markdown-like bullets to ul (very small handling)
   s = s.replace(/(<p>)(?:- |• )(.+?)(<\/p>)/g, "<ul><li>$2</li></ul>");
-
   return s;
 }
 
-// append message to chat
-function appendMessage(role, text) {
+function appendMessage(role, text, opts = {}) {
+  // remove any existing "Thinking..." placeholder if adding assistant real message
+  if (role === "assistant") {
+    // remove any previous assistant placeholder with exactly "Thinking..."
+    Array.from(chatArea.querySelectorAll(".msg.assistant .bubble")).forEach(b => {
+      if (b.textContent.trim() === "Thinking...") b.remove();
+    });
+  }
+
   const wrapper = document.createElement("div");
   wrapper.className = `msg ${role === "you" ? "you" : "assistant"}`;
 
@@ -68,7 +56,6 @@ function appendMessage(role, text) {
   const content = document.createElement("div");
   content.className = "content";
 
-  // build html
   if (role === "you") {
     content.innerHTML = `<div class="role">${esc(roleLabel)}</div><div class="bubble">${esc(text)}</div>`;
   } else {
@@ -80,67 +67,94 @@ function appendMessage(role, text) {
   chatArea.appendChild(wrapper);
   chatArea.scrollTop = chatArea.scrollHeight;
 
-  // after DOM inserted render math placeholders
   renderMathInElementSafe(wrapper);
 
-  // Add "View 3D" button if a molecule name or \ce{...} is present
+  // add View 3D if candidate exists
   if (role !== "you") {
-    // try find \ce{...}
     const ceMatch = text.match(/\\ce\{([^}]+)\}/);
-    const formulaMatch = text.match(/\b([A-Z][a-z]?\d*(?:[A-Z][a-z]?\d*)+)\b/); // crude formula detection
+    const formulaMatch = text.match(/\b([A-Z][a-z]?\d*(?:[A-Z][a-z]?\d*)+)\b/);
     const candidate = ceMatch ? ceMatch[1] : (formulaMatch ? formulaMatch[1] : null);
-    if (candidate) {
+    if (candidate && !opts.no3dButton) {
       const btn = document.createElement("button");
       btn.className = "btn small";
       btn.textContent = "View 3D";
       btn.style.marginLeft = "12px";
       btn.onclick = () => visualizeMolecule(candidate);
-      // append to last bubble
-      wrapper.querySelector(".bubble").appendChild(btn);
+      const bubble = wrapper.querySelector(".bubble");
+      bubble.appendChild(btn);
     }
   }
 }
 
-// call backend /api/chat
+// safe fetch-json: reads text then parse
+async function safeFetchJSON(url, options = {}) {
+  const res = await fetch(url, options);
+  const text = await res.text();
+  if (!text) {
+    // empty body
+    return { ok: false, status: res.status, error: `Empty response body (status ${res.status})` };
+  }
+  try {
+    const data = JSON.parse(text);
+    return { ok: true, status: res.status, data };
+  } catch (err) {
+    return { ok: false, status: res.status, error: `Failed to parse JSON (status ${res.status}): ${err.message}`, raw: text };
+  }
+}
+
+// send prompt to backend /api/chat
 async function sendPrompt(prompt) {
+  // add user message and assistant thinking placeholder
   appendMessage("you", prompt);
-  appendMessage("assistant", "Thinking...");
+  appendMessage("assistant", "Thinking...", { no3dButton:true });
 
   try {
-    const res = await fetch("/api/chat", {
+    const result = await safeFetchJSON("/api/chat", {
       method:"POST",
       headers: {"Content-Type":"application/json"},
       body: JSON.stringify({ prompt })
     });
-    const json = await res.json();
-    // remove the "Thinking..." placeholder (last assistant message)
-    const placeholders = Array.from(chatArea.querySelectorAll(".msg.assistant .bubble"));
-    const lastBubble = placeholders[placeholders.length - 1];
-    if (lastBubble) lastBubble.innerHTML = ""; // clear placeholder
 
-    if (!json.ok) {
-      appendMessage("assistant", "Error: " + (json.error || "Server error"));
+    if (!result.ok) {
+      appendMessage("assistant", `Network / server error: ${result.error || 'unknown'}${result.raw ? '\nRaw response: ' + result.raw : ''}`);
       return;
     }
-    // If server replied with message (out-of-scope or answer)
-    appendMessage("assistant", json.message || json.result || "");
+
+    const json = result.data;
+    if (!json) {
+      appendMessage("assistant", "Server returned no JSON.");
+      return;
+    }
+    if (json.ok === false) {
+      appendMessage("assistant", `Server error: ${json.error || 'unknown'}`);
+      return;
+    }
+    const message = json.message || json.result || "";
+    appendMessage("assistant", message);
   } catch (err) {
-    appendMessage("assistant", "Network / server error: " + (err?.message || err));
+    appendMessage("assistant", "Network error: " + (err.message || err));
   }
 }
 
-// call API visualize -> show modal with 3Dmol
+// visualize molecule (calls /api/visualize)
 async function visualizeMolecule(moleculeName) {
+  appendMessage("assistant", `Preparing 3D viewer for ${moleculeName}...`, { no3dButton:true });
+
   try {
-    // call visualize endpoint
-    const res = await fetch("/api/visualize", {
-      method:"POST",
+    const result = await safeFetchJSON("/api/visualize", {
+      method: "POST",
       headers: {"Content-Type":"application/json"},
       body: JSON.stringify({ molecule: moleculeName })
     });
-    const json = await res.json();
+
+    if (!result.ok) {
+      appendMessage("assistant", `3D visualization error: ${result.error || 'no-json'}`);
+      return;
+    }
+
+    const json = result.data;
     if (!json.ok) {
-      appendMessage("assistant", `Visualization failed: ${json.error || "unknown"}`);
+      appendMessage("assistant", `Visualization failed: ${json.error || 'unknown'}`);
       return;
     }
 
@@ -148,26 +162,22 @@ async function visualizeMolecule(moleculeName) {
     currentCid = json.cid || null;
     viewerCIDSpan.textContent = currentCid ? `CID: ${currentCid}` : "";
 
-    // show modal
+    if (!currentSdf) {
+      appendMessage("assistant", "Visualization failed: no SDF returned by server.");
+      return;
+    }
+
+    // show modal and render
     viewerModal.classList.remove("hidden");
     viewerModal.setAttribute("aria-hidden","false");
-
-    // init 3Dmol viewer
-    // clear previous
     viewerDiv.innerHTML = "";
-
-    // viewer config
-    glViewer = $3Dmol.createViewer(viewerDiv, {
-      defaultcolors: $3Dmol.rasmolElementColors
-    });
-
-    // add model and style
+    glViewer = $3Dmol.createViewer(viewerDiv, { defaultcolors: $3Dmol.rasmolElementColors });
     glViewer.addModel(currentSdf, "sdf");
     glViewer.setStyle({}, {stick:{radius:0.15}, sphere:{radius:0.3}});
     glViewer.zoomTo();
     glViewer.render();
   } catch (err) {
-    appendMessage("assistant", "3D visualization error: " + (err?.message || err));
+    appendMessage("assistant", "3D visualization error: " + (err.message || err));
   }
 }
 
@@ -180,7 +190,7 @@ function closeModal() {
   glViewer = null;
 }
 
-// wire up form
+// event wiring
 if (chatForm) {
   chatForm.addEventListener("submit", (evt) => {
     evt.preventDefault();
@@ -190,31 +200,19 @@ if (chatForm) {
     promptInput.value = "";
   });
 }
-
-// modal close buttons
 if (modalClose) modalClose.addEventListener("click", closeModal);
-if (downloadSdfBtn) {
-  downloadSdfBtn.addEventListener("click", () => {
-    if (!currentSdf) return;
-    const blob = new Blob([currentSdf], {type:"chemical/x-mdl-sdfile"});
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = (currentCid ? `compound_${currentCid}.sdf` : "molecule.sdf");
-    document.body.appendChild(a);
-    a.click();
-    a.remove();
-    URL.revokeObjectURL(url);
-  });
-}
-if (fitModelBtn) {
-  fitModelBtn.addEventListener("click", () => {
-    if (glViewer) {
-      glViewer.zoomTo();
-      glViewer.render();
-    }
-  });
-}
+if (downloadSdfBtn) downloadSdfBtn.addEventListener("click", () => {
+  if (!currentSdf) return;
+  const blob = new Blob([currentSdf], {type:"chemical/x-mdl-sdfile"});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = (currentCid ? `compound_${currentCid}.sdf` : "molecule.sdf");
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
+});
+if (fitModelBtn) fitModelBtn.addEventListener("click", () => { if (glViewer) { glViewer.zoomTo(); glViewer.render(); } });
 
-// initial focus
 promptInput?.focus();
