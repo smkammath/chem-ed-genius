@@ -1,28 +1,35 @@
-// ✅ backend/server.js — CommonJS version for Render + Node 20
-const express = require("express");
-const cors = require("cors");
-const bodyParser = require("body-parser");
-const dotenv = require("dotenv");
-const fetch = (...args) => import("node-fetch").then(({ default: fetch }) => fetch(...args));
-const OpenAI = require("openai");
+// ✅ Chem-Ed Genius — Backend Server (ESM version)
+import express from "express";
+import cors from "cors";
+import bodyParser from "body-parser";
+import dotenv from "dotenv";
+import fetch from "node-fetch";
+import OpenAI from "openai";
 
 dotenv.config();
 const app = express();
 const PORT = process.env.PORT || 10000;
 
-app.use(cors({
-  origin: process.env.RENDER_ORIGIN || "*",
-}));
+// Enable CORS for your frontend
+app.use(
+  cors({
+    origin: process.env.RENDER_ORIGIN || "*",
+  })
+);
+
 app.use(bodyParser.json());
 
+// Initialize OpenAI API client
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
 });
 
+// Health check endpoint
 app.get("/", (req, res) => {
   res.send("✅ Chem-Ed Genius backend is live!");
 });
 
+// Main API endpoint
 app.post("/api/chat", async (req, res) => {
   try {
     const { question } = req.body;
@@ -65,6 +72,7 @@ Question: ${question}
   }
 });
 
+// Start the server
 app.listen(PORT, () => {
   console.log(`🚀 Chem-Ed Genius backend running on port ${PORT}`);
 });
