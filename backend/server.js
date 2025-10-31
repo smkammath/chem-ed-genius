@@ -1,9 +1,8 @@
 import express from "express";
 import cors from "cors";
-import fs from "fs";
 import path from "path";
-import dotenv from "dotenv";
 import bodyParser from "body-parser";
+import dotenv from "dotenv";
 
 dotenv.config();
 
@@ -15,70 +14,68 @@ const __dirname = path.resolve();
 const frontendPath = path.join(__dirname, "frontend");
 app.use(express.static(frontendPath));
 
+// Serve frontend
 app.get("/", (req, res) => {
   res.sendFile(path.join(frontendPath, "index.html"));
 });
 
-// 🔹 Core API endpoint
+// 🧠 Chat logic
 app.post("/api/chat", async (req, res) => {
   try {
     const prompt = req.body.prompt?.trim();
-    if (!prompt) {
-      return res.status(400).json({ error: "Missing prompt" });
-    }
+    if (!prompt) return res.status(400).json({ error: "Missing prompt" });
 
-    console.log("🧠 User query:", prompt);
+    console.log("🧠 Query:", prompt);
 
-    // Detect if the question explicitly requests 3D visualization
-    const wants3D = /(3d|diagram|visualize|structure|model|view)/i.test(prompt);
+    // ✅ Detect if user explicitly wants 3D visualization
+    const wants3D = /(3d|diagram|structure|visualize|model|geometry)/i.test(prompt);
 
-    // Extract possible molecule or reaction keywords
-    const match = prompt.match(/[A-Z][a-z]?\d*|[a-z]+/gi);
-    const rawTerm = match ? match.join(" ").trim() : "";
-
-    // Clean unwanted words
-    const cleaned = rawTerm
-      .replace(/explain|molecular|structure|diagram|give|show|3d|visualize|model/gi, "")
-      .trim();
-
-    // Common molecule dictionary
-    const known = {
+    // ✅ Identify known molecules or compounds from the text
+    const knownMolecules = {
+      "ethanol": "C2H5OH",
+      "methanol": "CH3OH",
       "dimethyl alcohol": "CH3OH",
       "methyl alcohol": "CH3OH",
-      methanol: "CH3OH",
-      ethanol: "C2H5OH",
-      water: "H2O",
-      methane: "CH4",
-      ammonia: "NH3",
-      carbon: "C",
-      oxygen: "O2",
-      hydrogen: "H2",
-      glucose: "C6H12O6",
+      "water": "H2O",
+      "ammonia": "NH3",
+      "methane": "CH4",
+      "carbon dioxide": "CO2",
+      "oxygen": "O2",
+      "hydrogen": "H2",
+      "glucose": "C6H12O6"
     };
 
-    const molecule = known[cleaned.toLowerCase()] || cleaned || "unknown compound";
+    let molecule = null;
+    for (const [name, formula] of Object.entries(knownMolecules)) {
+      if (prompt.toLowerCase().includes(name)) {
+        molecule = { name, formula };
+        break;
+      }
+    }
 
-    // 🔹 Generate base explanation
-    let responseText = `
-**Explanation**: The molecule ${molecule} involves covalent bonding, specific hybridization, and characteristic geometry. 
-It can be described by the valence bond theory and electron-pair repulsion model.
-`;
+    // ✅ Build explanation
+    let explanation = "";
 
-    // If 3D is explicitly requested, append visualization option
-    if (wants3D) {
-      responseText += `  
+    if (molecule) {
+      explanation = `**Explanation:** The molecule **${molecule.name} (${molecule.formula})** involves covalent bonding and exhibits characteristic molecular geometry. It typically follows the valence bond and hybridization principles.`;
+    } else {
+      explanation = `**Explanation:** ${prompt.charAt(0).toUpperCase() + prompt.slice(1)} involves chemical interactions explained by covalent or ionic bonding concepts, depending on the compound and context.`;
+    }
+
+    // ✅ Add 3D only when explicitly requested
+    if (wants3D && molecule) {
+      explanation += `  
 You can visualize the molecular geometry interactively below.  
 View 3D`;
     }
 
-    res.json({ answer: responseText, molecule: wants3D ? molecule : null });
+    res.json({ answer: explanation, molecule: wants3D && molecule ? molecule.formula : null });
   } catch (err) {
     console.error("❌ Server error:", err);
     res.status(500).json({ error: "Internal server error" });
   }
 });
 
-// Fallback route for frontend
 app.get("*", (req, res) => {
   res.sendFile(path.join(frontendPath, "index.html"));
 });
