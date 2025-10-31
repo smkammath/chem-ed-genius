@@ -58,7 +58,6 @@ function addMessage(sender, text, molecule = null) {
   renderMath();
 }
 
-// ✅ Fetch and render 3D only when explicitly requested
 async function fetch3DStructure(molecule) {
   addMessage("bot", `Fetching 3D model for ${molecule}...`);
   try {
@@ -66,10 +65,10 @@ async function fetch3DStructure(molecule) {
       `https://pubchem.ncbi.nlm.nih.gov/rest/pug/compound/name/${molecule}/SDF?record_type=3d`
     );
     const sdf = await res.text();
-    if (!sdf || sdf.length < 100) throw new Error("Invalid data");
+    if (!sdf || sdf.length < 100) throw new Error("Invalid structure");
     render3D(sdf, molecule);
   } catch {
-    addMessage("bot", `⚠️ No 3D structure available for ${molecule}.`);
+    addMessage("bot", `⚠️ 3D structure not available for ${molecule}.`);
   }
 }
 
