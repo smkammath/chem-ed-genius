@@ -1,133 +1,160 @@
-// ✅ backend/server.js — Final CommonJS Version for Render
-
+// backend/server.js (CommonJS)
 const express = require("express");
-const cors = require("cors");
 const bodyParser = require("body-parser");
 const path = require("path");
-const fetch = (...args) => import("node-fetch").then(({ default: fetch }) => fetch(...args));
+const fetch = require("node-fetch");
+const cors = require("cors");
 
 const app = express();
-app.use(bodyParser.json());
 
-// --- CORS setup ---
-const allowedOrigin = process.env.RENDER_ORIGIN || process.env.FRONTEND_ORIGIN || "*";
+const PORT = process.env.PORT ? parseInt(process.env.PORT, 10) : 10000;
+const OPENAI_KEY = process.env.OPENAI_API_KEY || "";
+const MODEL_NAME = process.env.MODEL_NAME || "gpt-5-thinking-mini";
+const RENDER_ORIGIN = process.env.RENDER_ORIGIN || "*";
+
+// CORS: restrict if RENDER_ORIGIN provided else allow all
 app.use(
   cors({
-    origin: allowedOrigin === "*" ? "*" : allowedOrigin,
+    origin: RENDER_ORIGIN === "*" ? true : RENDER_ORIGIN,
   })
 );
 
-// --- Serve frontend static files ---
+app.use(bodyParser.json({ limit: "200kb" }));
+
+// Serve frontend static files (assumes Dockerfile copied frontend to backend/frontend)
 const frontendPath = path.join(__dirname, "frontend");
 app.use(express.static(frontendPath));
 
-// --- Health check endpoint ---
-app.get("/api/health", (req, res) => {
-  res.json({ ok: true, ts: Date.now() });
-});
+// Utility: call OpenAI Chat Completions (simple REST)
+async function callOpenAIChat(messages) {
+  if (!OPENAI_KEY) {
+    throw new Error("OPENAI_API_KEY not set");
+  }
 
-// --- Helper functions ---
-function wants3D(question) {
-  if (!question || typeof question !== "string") return false;
-  const q = question.toLowerCase();
-  const re = /\b(3d|3-d|show\s+3d|view\s+3d|visualize\s+3d|display\s+3d|show\s+3-d|view\s+3-d)\b/i;
-  if (re.test(q)) return true;
-  if (q.includes("structure in 3d") || q.includes("structure 3d")) return true;
-  return false;
+  const url = "https://api.openai.com/v1/chat/completions";
+  const payload = {
+    model: MODEL_NAME,
+    messages,
+    max_tokens: 600,
+    temperature: 0.2,
+    stream: false,
+  };
+
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 20000); // 20s timeout
+
+  const res = await fetch(url, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${OPENAI_KEY}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(payload),
+    signal: controller.signal,
+  }).finally(() => clearTimeout(timeout));
+
+  if (!res.ok) {
+    const txt = await res.text().catch(() => "");
+    throw new Error(`OpenAI error ${res.status}: ${txt}`);
+  }
+  const data = await res.json();
+  // defensive: pull message text
+  const assistant = data?.choices?.[0]?.message?.content ?? "";
+  return assistant;
 }
 
-function makeMolQuery(question) {
-  if (!question) return null;
-  const ofMatch = question.match(/(?:of|for)\s+([A-Za-z0-9\-+()]+)/i);
-  if (ofMatch && ofMatch[1]) return ofMatch[1];
-  const words = question.trim().split(/\s+/).map((w) => w.replace(/[^\w\-\+\(\)]/g, ""));
-  if (words.length === 0) return null;
-  return words.slice(-1)[0];
-}
-
-// --- Main AI Endpoint ---
+// POST /api/chat
+// body: { question: "..." }
 app.post("/api/chat", async (req, res) => {
   try {
-    const question = req.body?.question?.toString() || "";
-    if (!question) return res.status(400).json({ error: "empty_question" });
-
-    const show3d = wants3D(question);
-    const molQuery = show3d ? makeMolQuery(question) : null;
-
-    const OPENAI_KEY = process.env.OPENAI_API_KEY;
-    const MODEL_NAME = process.env.MODEL_NAME || "gpt-4o-mini";
-
-    if (!OPENAI_KEY) {
-      console.error("❌ Missing OPENAI_API_KEY");
-      return res.status(500).json({ error: "server_misconfigured" });
+    const question = (req.body && String(req.body.question || "")).trim();
+    if (!question) {
+      return res.status(400).json({ ok: false, error: "Empty question" });
     }
 
-    const systemPrompt = `
-You are Chem-Ed Genius — a chemistry AI tutor. 
-Be accurate, brief, and respond only with chemistry explanations.
-`;
-
-    const payload = {
-      model: MODEL_NAME,
-      input: [
-        { role: "system", content: systemPrompt },
-        { role: "user", content: question },
-      ],
+    // Build system + user messages
+    const systemMsg = {
+      role: "system",
+      content:
+        "You are Chem-Ed Genius: Strictly chemistry. When user asks '3D' or 'show 3D' or 'visualize' return a short explanatory answer and add a JSON marker 'SHOW3D: <molecule>' at the end on a new line (for the frontend to show viewer). Otherwise only provide the explanation text.",
     };
 
-    const r = await fetch("https://api.openai.com/v1/responses", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${OPENAI_KEY}`,
-      },
-      body: JSON.stringify(payload),
-    });
+    const userMsg = { role: "user", content: question };
 
-    if (!r.ok) {
-      const text = await r.text().catch(() => "<no-body>");
-      console.error("OpenAI error", r.status, text);
-      return res.status(502).json({ error: "openai_error", status: r.status, body: text });
+    // call OpenAI
+    let assistantText = "";
+    try {
+      assistantText = await callOpenAIChat([systemMsg, userMsg]);
+    } catch (err) {
+      console.error("OpenAI call error:", err?.message || err);
+      return res
+        .status(502)
+        .json({ ok: false, error: "No AI response", details: err.message });
     }
 
-    const json = await r.json().catch(() => null);
-    let answer = "";
-
-    if (json?.output?.length) {
-      answer = json.output
-        .map((o) => {
-          if (typeof o === "string") return o;
-          if (Array.isArray(o.content)) return o.content.map((c) => c.text || c).join(" ");
-          return o.content?.text || JSON.stringify(o.content);
-        })
-        .join("\n\n")
-        .trim();
-    } else if (json?.choices?.[0]?.message?.content) {
-      answer = json.choices[0].message.content;
-    } else {
-      answer = "Sorry — I couldn't parse the AI response.";
+    // Detect if user asked for 3D (simple heuristics)
+    const lowerQ = question.toLowerCase();
+    let wants3D = false;
+    if (
+      /3d|3-d|show.*3d|visualiz|visualise|visualize|mol(ecule)?.*3d|view.*3d/i.test(
+        question
+      ) ||
+      /\bshow\b.*\bstructure\b/i.test(question)
+    ) {
+      wants3D = true;
     }
 
-    res.json({
+    // If wants 3D, attempt to extract a molecule query (simple heuristic)
+    let molQuery = null;
+    if (wants3D) {
+      // Try to find a chemical formula or molecule name near the question
+      // look for patterns like 'of ethanol', 'CH3OH', 'HCl', 'ethanol'
+      const formulaMatch = question.match(
+        /([A-Z][a-z]?[\d]*[A-Z]?[a-z]?\d*|[A-Za-z]+(?:-[A-Za-z]+)?)/g
+      );
+      if (formulaMatch && formulaMatch.length) {
+        // choose last word (likely target) but filter common words
+        const candidates = formulaMatch.filter(
+          (w) =>
+            !/^(explain|show|structure|the|of|in|molecular|give|visualize|display|3d|3-d|what|when|how|with|and|for)$/.test(
+              w.toLowerCase()
+            )
+        );
+        if (candidates.length) {
+          // prefer ones containing letters/digits typical of formulas or names
+          molQuery = candidates[candidates.length - 1];
+        } else {
+          molQuery = formulaMatch[formulaMatch.length - 1];
+        }
+      }
+      if (!molQuery) molQuery = question.split(" ").slice(-1)[0];
+    }
+
+    // Final response
+    const response = {
       ok: true,
-      answer,
-      show3d,
-      molQuery,
-    });
+      answer: assistantText.trim(),
+      show3d: wants3D && Boolean(molQuery),
+      molQuery: molQuery ? String(molQuery).trim() : null,
+    };
+
+    return res.json(response);
   } catch (err) {
-    console.error("Server error /api/chat", err);
-    res.status(500).json({ error: "internal_error", message: err.message });
+    console.error("Server /api/chat err:", err);
+    return res.status(500).json({ ok: false, error: "Server error" });
   }
 });
 
-// --- SPA fallback ---
+// fallback: serve index.html for frontend routes (SPA)
 app.get("*", (req, res) => {
-  const indexPath = path.join(frontendPath, "index.html");
-  res.sendFile(indexPath, (err) => {
-    if (err) res.status(404).send("Frontend not deployed.");
+  const indexHtml = path.join(frontendPath, "index.html");
+  res.sendFile(indexHtml, (err) => {
+    if (err) {
+      res.status(500).send("Frontend not found");
+    }
   });
 });
 
-// --- Start server ---
-const port = process.env.PORT || 10000;
-app.listen(port, () => console.log(`🚀 Chem-Ed Genius running on port ${port}`));
+app.listen(PORT, () => {
+  console.log(`🚀 Chem-Ed Genius running on port ${PORT}`);
+});
