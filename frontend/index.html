@@ -1,36 +1,15 @@
 <!doctype html>
 <html lang="en">
-<head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Chem-Ed Genius</title>
+  <head>
+    <meta charset="utf-8" />
+    <title>Chem-Ed Genius</title>
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <div id="root"></div>
 
-  <!-- MathJax as you asked -->
-  <script id="MathJax-script" async
-    src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js">
-  </script>
-
-  <link rel="stylesheet" href="styles.css" />
-</head>
-<body>
-  <div id="app">
-    <header class="site-header">
-      <h1>Chem-Ed Genius <span class="emoji">🧪</span></h1>
-      <p class="subtitle">Explain. Visualize. Ace the exam — chemistry only.</p>
-    </header>
-
-    <main class="center-wrap">
-      <div id="card" class="glass-card">
-        <div id="conversation" class="conversation" aria-live="polite"></div>
-
-        <form id="askForm" class="ask-form" autocomplete="off">
-          <input id="promptInput" placeholder="Ask a chemistry question (e.g., 'Explain CH3OH with 3D')" />
-          <button id="sendButton" type="submit">Send</button>
-        </form>
-      </div>
-    </main>
-  </div>
-
-  <script src="app.js"></script>
-</body>
+    <!-- load our frontend script -->
+    <script src="./app.js"></script>
+  </body>
 </html>
