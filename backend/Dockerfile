@@ -1,35 +1,42 @@
-# ✅ Final Dockerfile for Chem-Ed Genius Backend
-FROM node:20-alpine
-
-# Install missing packages (curl + unzip)
-RUN apk add --no-cache curl unzip
+# backend/Dockerfile (Render-friendly)
+FROM node:20-bullseye-slim
 
 WORKDIR /app
 
-# Copy package and install dependencies
+# install minimal tools for downloading and unzipping
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    curl unzip ca-certificates \
+ && rm -rf /var/lib/apt/lists/*
+
+# copy backend package files and install only production dependencies
 COPY package*.json ./
 RUN npm install --omit=dev
 
-# Copy backend source
+# copy backend source files
 COPY . .
 
-# ✅ Automatically pull frontend from your GitHub repo
+# --- Fetch frontend from GitHub and extract (so backend serves static files) ---
 ARG REPO=smkammath/chem-ed-genius
 ARG BRANCH=main
+ENV REPO_ZIP=https://github.com/${REPO}/archive/refs/heads/${BRANCH}.zip
 
 RUN mkdir -p /tmp/repo \
- && echo "⬇️ Downloading frontend from GitHub..." \
- && curl -fsSL "https://github.com/${REPO}/archive/refs/heads/${BRANCH}.zip" -o /tmp/repo.zip \
+ && echo "⬇️ Downloading frontend repo ${REPO_ZIP}" \
+ && curl -fsSL "${REPO_ZIP}" -o /tmp/repo.zip \
  && unzip -q /tmp/repo.zip -d /tmp/repo \
  && FOLDER=$(ls /tmp/repo | head -n1) \
  && if [ -d "/tmp/repo/${FOLDER}/frontend" ]; then \
       rm -rf /app/frontend || true; \
       mkdir -p /app/frontend && cp -r /tmp/repo/${FOLDER}/frontend/* /app/frontend/; \
-      echo "✅ Frontend copied successfully to /app/frontend"; \
+      echo "✅ Frontend copied successfully."; \
     else \
-      echo "⚠️ Frontend folder not found inside repo archive"; \
+      echo "⚠️ Frontend directory not found in repo archive."; \
     fi \
  && rm -rf /tmp/repo /tmp/repo.zip
 
-EXPOSE 10000
-CMD ["npm", "start"]
+# expose port
+ENV PORT=10000
+EXPOSE ${PORT}
+
+# start server
+CMD ["node", "server.js"]
