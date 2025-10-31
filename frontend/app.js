@@ -1,50 +1,57 @@
-// frontend/app.js
-const BACKEND_URL = "https://chem-ed-genius.onrender.com";
+(() => {
+  const convo = document.querySelector("#conversation");
+  const form = document.querySelector("#askForm");
+  const input = document.querySelector("#promptInput");
+  const send = document.querySelector("#sendButton");
 
-const chatBox = document.getElementById("chat-box");
-const inputField = document.getElementById("user-input");
-const sendButton = document.getElementById("send-btn");
+  const append = (cls, msg) => {
+    const div = document.createElement("div");
+    div.className = `bubble ${cls}`;
+    div.innerHTML = msg;
+    convo.appendChild(div);
+    convo.scrollTop = convo.scrollHeight;
+    return div;
+  };
 
-async function sendMessage() {
-  const userPrompt = inputField.value.trim();
-  if (!userPrompt) return;
+  async function sendPrompt(prompt) {
+    append("user", prompt);
+    const bot = append("bot", "<i>Thinking...</i>");
+    send.disabled = true;
 
-  appendMessage("You", userPrompt);
-  inputField.value = "";
+    try {
+      const res = await fetch("/api/chat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ prompt }),
+      });
+      const data = await res.json();
+      bot.remove();
 
-  appendMessage("Chem-Ed Genius", "Thinking...");
-
-  try {
-    const response = await fetch(`${BACKEND_URL}/api/chat`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ prompt: userPrompt }),
-    });
-
-    const data = await response.json();
-    document.querySelectorAll(".message").forEach((el) => {
-      if (el.textContent === "Thinking...") el.remove();
-    });
-
-    if (data.text) appendMessage("Chem-Ed Genius", data.text);
-    else appendMessage("Chem-Ed Genius", "⚠️ No response from AI.");
-  } catch (err) {
-    console.error("Error:", err);
-    appendMessage("Chem-Ed Genius", "⚠️ Server error or network issue.");
+      if (!data.ok) {
+        append("bot", `⚠️ ${data.error || "Server error"}`);
+      } else {
+        const html = data.reply.replace(/\n/g, "<br>");
+        const newBubble = append("bot", html);
+      }
+    } catch (err) {
+      bot.remove();
+      append("bot", "❌ Connection error. Try again.");
+    } finally {
+      send.disabled = false;
+      input.value = "";
+    }
   }
-}
 
-function appendMessage(sender, message) {
-  const messageDiv = document.createElement("div");
-  messageDiv.classList.add("message", sender === "You" ? "user" : "bot");
-  messageDiv.innerHTML = message
-    .replace(/\*\*(.*?)\*\*/g, "<b>$1</b>")
-    .replace(/\n/g, "<br>");
-  chatBox.appendChild(messageDiv);
-  chatBox.scrollTop = chatBox.scrollHeight;
-}
+  window.open3D = (mol) => {
+    const clean = mol.replace(/[^A-Za-z0-9]/g, "");
+    if (!clean) return alert("Invalid molecule name!");
+    window.open(`https://molview.org/?q=${encodeURIComponent(clean)}`, "_blank");
+  };
 
-sendButton.addEventListener("click", sendMessage);
-inputField.addEventListener("keypress", (e) => {
-  if (e.key === "Enter") sendMessage();
-});
+  form.addEventListener("submit", (e) => {
+    e.preventDefault();
+    const prompt = input.value.trim();
+    if (!prompt) return;
+    sendPrompt(prompt);
+  });
+})();
