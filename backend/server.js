@@ -1,9 +1,13 @@
-// backend/server.js
-// CommonJS so it runs with default Node + package.json unchanged
+// backend/server.js (ESM version - works with "type": "module")
+import path from "path";
+import express from "express";
+import cors from "cors";
+import fetch from "node-fetch";
+import { fileURLToPath } from "url";
 
-const path = require("path");
-const express = require("express");
-const cors = require("cors");
+// Needed for __dirname in ESM
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 const app = express();
 app.use(express.json());
@@ -14,7 +18,7 @@ const OPENAI_API_KEY = process.env.OPENAI_API_KEY || "";
 const MODEL_NAME = process.env.MODEL_NAME || "gpt-5-thinking-mini";
 const RENDER_ORIGIN = process.env.RENDER_ORIGIN || "*";
 
-// CORS - allow your frontend origin (set in Render env)
+// CORS
 app.use(
   cors({
     origin: RENDER_ORIGIN,
@@ -23,17 +27,15 @@ app.use(
   })
 );
 
-// Serve frontend static files (copied into /app/frontend by Dockerfile)
+// Serve frontend (copied by Dockerfile)
 const frontendPath = path.join(__dirname, "frontend");
 app.use(express.static(frontendPath));
 
-// Simple health
-app.get("/healthz", (req, res) => res.send("OK"));
+app.get("/healthz", (req, res) => res.send("✅ OK"));
 
-// Utility: sanitize prompt
+// Helpers
 function safeText(s) {
-  if (!s) return "";
-  return String(s).trim();
+  return s ? String(s).trim() : "";
 }
 
 function userAsked3D(prompt) {
@@ -42,11 +44,10 @@ function userAsked3D(prompt) {
   return /\b(3d|3-d|view 3d|show 3d|show the 3d|view3d|view 3-d)\b/.test(q);
 }
 
-// Small built-in reaction DB to answer simple reaction requests instantly
 const reactionsDB = {
   "copper and hcl": {
     eq: "Cu + 2HCl → CuCl₂ + H₂↑",
-    info: "Copper reacts with hydrochloric acid to form copper(II) chloride and hydrogen gas (evolution of H₂).",
+    info: "Copper reacts with hydrochloric acid to form copper(II) chloride and hydrogen gas.",
   },
   "zinc and hcl": {
     eq: "Zn + 2HCl → ZnCl₂ + H₂↑",
@@ -54,11 +55,11 @@ const reactionsDB = {
   },
   "iron and hcl": {
     eq: "Fe + 2HCl → FeCl₂ + H₂↑",
-    info: "Iron reacts with dilute hydrochloric acid to form ferrous chloride and hydrogen gas (slowly).",
+    info: "Iron reacts with dilute hydrochloric acid to form ferrous chloride and hydrogen gas.",
   },
 };
 
-// Main API: /api/chat
+// Main API
 app.post("/api/chat", async (req, res) => {
   try {
     const raw = safeText(req.body?.prompt || "");
@@ -66,89 +67,72 @@ app.post("/api/chat", async (req, res) => {
 
     const q = raw.toLowerCase();
 
-    // If it's a reaction request and we have a quick DB hit:
+    // Reaction from DB
     const reactionKey = Object.keys(reactionsDB).find((k) => q.includes(k));
     if (q.includes("reaction") && reactionKey) {
       const r = reactionsDB[reactionKey];
       const html = `**Reaction:** ${r.eq}<br><br>**Explanation:** ${r.info}`;
-      return res.json({ ok: true, reply: html, requested3D: false });
+      return res.json({ ok: true, reply: html });
     }
 
-    // If user explicitly wants 3D for a molecule:
-    if (userAsked3D(q) || /\b(view 3d|show 3d|3d structure|3-d structure)\b/.test(q)) {
-      // try to extract a short molecule token (best effort): take last words after 'of'
+    // 3D request
+    if (userAsked3D(q)) {
       let mol = raw;
       const ofIdx = raw.toLowerCase().lastIndexOf(" of ");
       if (ofIdx !== -1) mol = raw.slice(ofIdx + 4).trim();
-      // fallback to whole prompt cleaned
-      mol = mol.split("?")[0].split(".")[0].trim();
-      if (!mol) mol = raw;
+      mol = mol.split("?")[0].split(".")[0].trim() || raw;
 
-      // Return a reply with a View 3D button; frontend will attach open3D()
-      const html = `**Explanation:** The molecule <strong>${mol}</strong> can be visualized in 3D. <br><br><button class="view3d" data-mol="${encodeURIComponent(
+      const html = `**Explanation:** The molecule <strong>${mol}</strong> can be visualized in 3D.<br><br><button class="view3d" data-mol="${encodeURIComponent(
         mol
       )}">View 3D</button>`;
-      return res.json({ ok: true, reply: html, requested3D: true, mol: mol });
+      return res.json({ ok: true, reply: html });
     }
 
-    // Otherwise: call OpenAI Chat Completion (if API key present). If no key, give a fallback safe reply.
+    // OpenAI fallback
     if (!OPENAI_API_KEY) {
-      const fallback = `**Explanation:** I don't have an OpenAI key configured on the server. Provide OPENAI_API_KEY in env to enable AI answers. Meanwhile: ${escapeHtml(
-        raw.slice(0, 200)
-      )}`;
-      return res.json({ ok: true, reply: fallback, requested3D: false });
+      return res.json({
+        ok: true,
+        reply:
+          "⚠️ OPENAI_API_KEY missing — AI explanations unavailable. Please set it in Render environment variables.",
+      });
     }
 
-    // Call OpenAI Chat Completion
     const payload = {
       model: MODEL_NAME,
       messages: [
         {
           role: "system",
           content:
-            "You are 'Chem-Ed Genius' — concise, accurate chemistry explanations. If the user asks to 'show 3D' or 'view 3D', produce a short explanation and include a 'View 3D' button markup (button class 'view3d' and data-mol attribute). Otherwise produce plain explanatory text. Keep answers short (<= 300 tokens).",
+            "You are Chem-Ed Genius, an AI chemistry tutor. Be concise, clear, and scientific.",
         },
         { role: "user", content: raw },
       ],
-      temperature: 0.2,
+      temperature: 0.4,
       max_tokens: 350,
     };
 
-    const r = await fetch("https://api.openai.com/v1/chat/completions", {
+    const response = await fetch("https://api.openai.com/v1/chat/completions", {
       method: "POST",
       headers: {
         Authorization: `Bearer ${OPENAI_API_KEY}`,
         "Content-Type": "application/json",
       },
       body: JSON.stringify(payload),
-      timeout: 60_000,
     });
 
-    const data = await r.json();
-    const aiText = data?.choices?.[0]?.message?.content || "";
-    // If OpenAI injected a request for a 3D button, we keep as-is; otherwise requested3D = false
-    const has3D = /\b(view 3d|show 3d|<button class="view3d")/i.test(aiText);
-
-    return res.json({ ok: true, reply: aiText, requested3D: has3D });
+    const data = await response.json();
+    const text = data?.choices?.[0]?.message?.content || "⚠️ No AI response.";
+    res.json({ ok: true, reply: text });
   } catch (err) {
-    console.error("API error:", err);
-    return res.status(500).json({ ok: false, error: "Server error" });
+    console.error("Server error:", err);
+    res.status(500).json({ ok: false, error: "Internal server error" });
   }
 });
 
-// fallback: serve index
 app.get("*", (req, res) => {
   res.sendFile(path.join(frontendPath, "index.html"));
 });
 
-// small helper
-function escapeHtml(s) {
-  if (!s) return "";
-  return String(s).replace(/[&<>"']/g, function (m) {
-    return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[m];
-  });
-}
-
 app.listen(PORT, () => {
-  console.log(`✅ Chem-Ed Genius running on port ${PORT}`);
+  console.log(`🚀 Chem-Ed Genius running on port ${PORT}`);
 });
