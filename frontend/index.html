@@ -1,49 +1,42 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="en">
-<head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Chem-Ed Genius</title>
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Chem-Ed Genius</title>
+    <link rel="stylesheet" href="styles.css" />
+    <script
+      id="MathJax-script"
+      async
+      src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"
+    ></script>
+  </head>
+  <body>
+    <div class="container">
+      <h1 class="title">Chem-Ed Genius 🧪</h1>
+      <p class="subtitle">Explain. Visualize. Ace the exam — chemistry only.</p>
 
-  <!-- MathJax for LaTeX rendering -->
-  <script id="MathJax-script" async
-    src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js">
-  </script>
+      <div id="chat-box" class="chat-box"></div>
 
-  <!-- marked.js for light Markdown -> HTML rendering -->
-  <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
-
-  <link rel="stylesheet" href="./styles.css" />
-</head>
-<body>
-  <header class="site-header">
-    <h1>Chem-Ed Genius <span class="emoji">🧪</span></h1>
-    <div class="subtitle">Explain. Visualize. Ace the exam — chemistry only.</div>
-  </header>
-
-  <main class="main-area">
-    <section id="chat-window" aria-live="polite"></section>
-
-    <form id="chat-form" autocomplete="off">
-      <input id="user-input" placeholder="Ask a chemistry question (e.g. 'Show 3D of CH3OH')" />
-      <button id="send-btn" type="submit">Send</button>
-    </form>
-  </main>
-
-  <!-- 3D Modal (hidden by default) -->
-  <div id="viewer-modal" class="viewer-modal" aria-hidden="true">
-    <div class="viewer-backdrop" id="viewer-backdrop"></div>
-    <div class="viewer-panel" role="dialog" aria-modal="true" aria-label="3D viewer">
-      <div class="viewer-header">
-        <strong id="viewer-title">3D Viewer</strong>
-        <button id="viewer-close" class="viewer-close" title="Close viewer">✕</button>
-      </div>
-      <div id="viewer-content" class="viewer-content">
-        <!-- injected viewer or message -->
+      <div class="input-area">
+        <input
+          id="user-input"
+          type="text"
+          placeholder="Ask a chemistry question (e.g. 'Explain CH3OH with 3D')"
+        />
+        <button id="send-btn">Send</button>
       </div>
     </div>
-  </div>
 
-  <script src="./app.js" type="module"></script>
-</body>
+    <script src="app.js"></script>
+    <script>
+      function show3DModel(molecule) {
+        const url = `https://embed.molview.org/v1/?mode=balls&smiles=${encodeURIComponent(
+          molecule
+        )}`;
+        const popup = window.open(url, "_blank");
+        if (!popup) alert("Please allow pop-ups to view 3D models.");
+      }
+    </script>
+  </body>
 </html>
