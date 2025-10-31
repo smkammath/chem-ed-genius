@@ -1,84 +1,102 @@
+// backend/server.js
 import express from "express";
 import cors from "cors";
-import path from "path";
 import bodyParser from "body-parser";
 import dotenv from "dotenv";
+import fetch from "node-fetch";
+import OpenAI from "openai";
 
 dotenv.config();
-
 const app = express();
+
+// Allow CORS from anywhere (frontend hosted separately)
 app.use(cors());
 app.use(bodyParser.json());
 
-const __dirname = path.resolve();
-const frontendPath = path.join(__dirname, "frontend");
-app.use(express.static(frontendPath));
-
-// Serve frontend
-app.get("/", (req, res) => {
-  res.sendFile(path.join(frontendPath, "index.html"));
+// Initialize OpenAI client
+const openai = new OpenAI({
+  apiKey: process.env.OPENAI_API_KEY,
 });
 
-// 🧠 Chat logic
+// --- Root health check ---
+app.get("/", (req, res) => {
+  res.json({ status: "✅ Chem-Ed Genius backend is live" });
+});
+
+// --- POST /api/chat ---
 app.post("/api/chat", async (req, res) => {
   try {
-    const prompt = req.body.prompt?.trim();
-    if (!prompt) return res.status(400).json({ error: "Missing prompt" });
-
-    console.log("🧠 Query:", prompt);
-
-    // ✅ Detect if user explicitly wants 3D visualization
-    const wants3D = /(3d|diagram|structure|visualize|model|geometry)/i.test(prompt);
-
-    // ✅ Identify known molecules or compounds from the text
-    const knownMolecules = {
-      "ethanol": "C2H5OH",
-      "methanol": "CH3OH",
-      "dimethyl alcohol": "CH3OH",
-      "methyl alcohol": "CH3OH",
-      "water": "H2O",
-      "ammonia": "NH3",
-      "methane": "CH4",
-      "carbon dioxide": "CO2",
-      "oxygen": "O2",
-      "hydrogen": "H2",
-      "glucose": "C6H12O6"
-    };
-
-    let molecule = null;
-    for (const [name, formula] of Object.entries(knownMolecules)) {
-      if (prompt.toLowerCase().includes(name)) {
-        molecule = { name, formula };
-        break;
-      }
+    const userPrompt = req.body.prompt?.trim();
+    if (!userPrompt) {
+      return res.status(400).json({ text: "⚠️ Missing prompt input." });
     }
 
-    // ✅ Build explanation
-    let explanation = "";
+    console.log("🧠 Received prompt:", userPrompt);
 
-    if (molecule) {
-      explanation = `**Explanation:** The molecule **${molecule.name} (${molecule.formula})** involves covalent bonding and exhibits characteristic molecular geometry. It typically follows the valence bond and hybridization principles.`;
-    } else {
-      explanation = `**Explanation:** ${prompt.charAt(0).toUpperCase() + prompt.slice(1)} involves chemical interactions explained by covalent or ionic bonding concepts, depending on the compound and context.`;
-    }
+    // OpenAI API call
+    const completion = await openai.chat.completions.create({
+      model: "gpt-3.5-turbo",
+      messages: [
+        {
+          role: "system",
+          content:
+            "You are Chem-Ed Genius, an expert chemistry explainer bot. Respond in detailed, clear explanations using chemistry terminology.",
+        },
+        { role: "user", content: userPrompt },
+      ],
+      max_tokens: 300,
+      temperature: 0.7,
+    });
 
-    // ✅ Add 3D only when explicitly requested
-    if (wants3D && molecule) {
-      explanation += `  
-You can visualize the molecular geometry interactively below.  
-View 3D`;
-    }
+    const text = completion.choices?.[0]?.message?.content?.trim();
+    if (!text) throw new Error("Empty response from OpenAI.");
 
-    res.json({ answer: explanation, molecule: wants3D && molecule ? molecule.formula : null });
-  } catch (err) {
-    console.error("❌ Server error:", err);
-    res.status(500).json({ error: "Internal server error" });
+    res.json({ text });
+  } catch (error) {
+    console.error("🔥 Error in /api/chat:", error);
+    res
+      .status(500)
+      .json({ text: `⚠️ Server error: ${error.message || "Unknown error"}` });
   }
 });
 
-app.get("*", (req, res) => {
-  res.sendFile(path.join(frontendPath, "index.html"));
+// --- POST /api/visualize ---
+app.post("/api/visualize", async (req, res) => {
+  try {
+    const q = req.body.query?.toLowerCase() || "";
+
+    const molecules = {
+      methane: "CH4",
+      ethane: "CC",
+      propane: "CCC",
+      butane: "CCCC",
+      ethanol: "CCO",
+      methanol: "CO",
+      water: "O",
+    };
+
+    const match = Object.keys(molecules).find((k) => q.includes(k));
+    if (!match)
+      return res.json({
+        html: "<p>❌ No 3D model found for that molecule.</p>",
+      });
+
+    const smiles = molecules[match];
+    const html = `
+      <iframe 
+        src="https://embed.molview.org/v1/?mode=balls&smiles=${smiles}" 
+        width="100%" height="100%" frameborder="0">
+      </iframe>
+    `;
+    res.json({ html });
+  } catch (error) {
+    console.error("Error in /api/visualize:", error);
+    res.status(500).json({ html: `<p>⚠️ Visualization error: ${error.message}</p>` });
+  }
 });
 
-const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => console.log(`✅ Chem-Ed Genius running on port ${PORT}`));
+// --- Start server ---
+const PORT = process.env.PORT || 10000;
+app.listen(PORT, () => {
+  console.log(`🚀 Chem-Ed Genius backend running on port ${PORT}`);
+});
