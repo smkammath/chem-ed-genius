@@ -1,51 +1,49 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Chem-Ed Genius 🧪</title>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Chem-Ed Genius</title>
 
-  <!-- ✅ Stylesheet -->
-  <link rel="stylesheet" href="styles.css" />
-
-  <!-- ✅ MathJax for Chemistry Equations and LaTeX rendering -->
+  <!-- MathJax for LaTeX rendering -->
   <script id="MathJax-script" async
     src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js">
   </script>
 
-  <!-- ✅ 3Dmol.js for 3D molecule rendering -->
-  <script src="https://3Dmol.csb.pitt.edu/build/3Dmol-min.js"></script>
+  <!-- marked.js for light Markdown -> HTML rendering -->
+  <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
 
-  <script>
-    // Ensures equations re-render dynamically after bot responses
-    function renderMath() {
-      if (window.MathJax) MathJax.typesetPromise();
-    }
-  </script>
+  <link rel="stylesheet" href="./styles.css" />
 </head>
-
 <body>
-  <div class="app-container">
-    <header>
-      <h1>Chem-Ed Genius 🧪</h1>
-      <p>Explain. Visualize. Ace the exam — chemistry only.</p>
-    </header>
+  <header class="site-header">
+    <h1>Chem-Ed Genius <span class="emoji">🧪</span></h1>
+    <div class="subtitle">Explain. Visualize. Ace the exam — chemistry only.</div>
+  </header>
 
-    <main id="chat-window" class="chat-window">
-      <!-- Chat messages dynamically inserted here -->
-    </main>
+  <main class="main-area">
+    <section id="chat-window" aria-live="polite"></section>
 
-    <footer>
-      <input
-        id="user-input"
-        type="text"
-        placeholder="Ask a chemistry question (e.g. 'Explain CH3OH with 3D')"
-      />
-      <button id="send-btn">Send</button>
-    </footer>
+    <form id="chat-form" autocomplete="off">
+      <input id="user-input" placeholder="Ask a chemistry question (e.g. 'Show 3D of CH3OH')" />
+      <button id="send-btn" type="submit">Send</button>
+    </form>
+  </main>
+
+  <!-- 3D Modal (hidden by default) -->
+  <div id="viewer-modal" class="viewer-modal" aria-hidden="true">
+    <div class="viewer-backdrop" id="viewer-backdrop"></div>
+    <div class="viewer-panel" role="dialog" aria-modal="true" aria-label="3D viewer">
+      <div class="viewer-header">
+        <strong id="viewer-title">3D Viewer</strong>
+        <button id="viewer-close" class="viewer-close" title="Close viewer">✕</button>
+      </div>
+      <div id="viewer-content" class="viewer-content">
+        <!-- injected viewer or message -->
+      </div>
+    </div>
   </div>
 
-  <!-- ✅ Main Chat Logic -->
-  <script src="app.js"></script>
+  <script src="./app.js" type="module"></script>
 </body>
 </html>
