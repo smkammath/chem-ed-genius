@@ -1,77 +1,127 @@
-// frontend/app.js — FINAL CLEAN VERSION
-(() => {
-  const convo = document.getElementById("conversation");
-  const form = document.getElementById("askForm");
-  const input = document.getElementById("promptInput");
-  const sendBtn = document.getElementById("sendButton");
-
-  function bubble(type, html) {
-    const div = document.createElement("div");
-    div.className = `bubble ${type}`;
-    div.innerHTML = html;
-    convo.appendChild(div);
-    convo.scrollTop = convo.scrollHeight;
-    return div;
+// frontend/app.js (plain JS)
+(function () {
+  // helpers
+  function el(tag, cls) {
+    const d = document.createElement(tag);
+    if (cls) d.className = cls;
+    return d;
   }
 
-  convo.addEventListener("click", async (ev) => {
-    const btn = ev.target.closest(".view3d");
-    if (!btn) return;
-    const mol = decodeURIComponent(btn.dataset.mol || "").trim();
-    if (!mol) return alert("Molecule not found.");
-    await show3D(mol);
-  });
+  // build UI
+  const root = document.getElementById("root");
+  root.innerHTML = "";
 
-  async function show3D(molecule) {
-    try {
-      const res = await fetch(
-        `https://pubchem.ncbi.nlm.nih.gov/rest/pug/compound/name/${encodeURIComponent(
-          molecule
-        )}/property/CanonicalSMILES/JSON`
-      );
-      const data = await res.json();
-      const smiles = data?.PropertyTable?.Properties?.[0]?.CanonicalSMILES;
-      if (!smiles) {
-        alert("Molecule not found in PubChem.");
-        return;
-      }
-      const url = `https://embed.molview.org/v1/?mode=balls&smiles=${encodeURIComponent(
-        smiles
-      )}`;
-      window.open(url, "_blank");
-    } catch (e) {
-      alert("Failed to fetch 3D model.");
-    }
+  const container = el("div", "chat-container");
+  const header = el("div", "chat-header");
+  header.innerHTML = `<h1>Chem-Ed Genius <span>🧪</span></h1><p>Explain. Visualize. Ace the exam — chemistry only.</p>`;
+  container.appendChild(header);
+
+  const box = el("div", "chat-box");
+  const messagesEl = el("div", "messages");
+  box.appendChild(messagesEl);
+
+  // input area
+  const inputWrap = el("div", "input-wrap");
+  const input = el("input", "chat-input");
+  input.placeholder = "Ask a chemistry question (e.g., 'Explain CH3OH with 3D')";
+  const btn = el("button", "send-btn");
+  btn.textContent = "Send";
+  inputWrap.appendChild(input);
+  inputWrap.appendChild(btn);
+
+  container.appendChild(box);
+  container.appendChild(inputWrap);
+  root.appendChild(container);
+
+  // utilities to render messages
+  function addUserMsg(text) {
+    const m = el("div", "msg user");
+    m.textContent = text;
+    messagesEl.appendChild(m);
+    messagesEl.scrollTop = messagesEl.scrollHeight;
+  }
+  function addBotMsg(text) {
+    const m = el("div", "msg bot");
+    m.innerHTML = text;
+    messagesEl.appendChild(m);
+    messagesEl.scrollTop = messagesEl.scrollHeight;
+  }
+  function addWarning(text) {
+    const m = el("div", "msg warn");
+    m.textContent = text;
+    messagesEl.appendChild(m);
+    messagesEl.scrollTop = messagesEl.scrollHeight;
+  }
+  function addIframe(url) {
+    const wrap = el("div", "iframe-wrap");
+    const iframe = document.createElement("iframe");
+    iframe.src = url;
+    iframe.width = "100%";
+    iframe.height = "360";
+    iframe.frameBorder = "0";
+    iframe.allowFullscreen = true;
+    wrap.appendChild(iframe);
+    messagesEl.appendChild(wrap);
+    messagesEl.scrollTop = messagesEl.scrollHeight;
   }
 
-  async function sendPrompt(prompt) {
-    bubble("user", prompt);
-    const thinking = bubble("bot", "<i>Thinking...</i>");
-    sendBtn.disabled = input.disabled = true;
+  // send handler
+  async function sendQuestion(q) {
+    if (!q || !q.trim()) return;
+    addUserMsg(q);
+    input.value = "";
+    addBotMsg("<em>Thinking...</em>");
 
     try {
-      const res = await fetch("/api/chat", {
+      const resp = await fetch("/api/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ prompt }),
+        body: JSON.stringify({ question: q }),
       });
-      const data = await res.json();
-      thinking.remove();
-      bubble("bot", data.reply || "⚠️ No AI response.");
-    } catch {
-      thinking.remove();
-      bubble("bot", "⚠️ Server unreachable. Try again later.");
-    } finally {
-      sendBtn.disabled = input.disabled = false;
-      input.value = "";
+
+      // remove the "Thinking..." node (last bot with <em>)
+      const last = messagesEl.querySelector(".msg.bot:last-of-type");
+      if (last && /Thinking/.test(last.innerHTML)) last.remove();
+
+      if (!resp.ok) {
+        addWarning("⚠️ Server unreachable. Try again later.");
+        return;
+      }
+      const data = await resp.json();
+      if (!data.ok) {
+        addWarning("⚠️ No AI response.");
+        if (data.error) addWarning("Error: " + data.error);
+        return;
+      }
+
+      // show answer
+      const safeAnswer = (data.answer || "").replace(/\n/g, "<br/>");
+      addBotMsg(`<strong>Explanation:</strong> ${safeAnswer}`);
+
+      // show 3D only when backend returns show3d:true and molQuery present
+      if (data.show3d && data.molQuery) {
+        // prefer molview.org query (works more reliably)
+        const qEnc = encodeURIComponent(String(data.molQuery));
+        const molviewUrl = `https://molview.org/?q=${qEnc}`;
+        // embed in iframe — note remote site may show popup; user can close on first load.
+        addIframe(molviewUrl);
+      }
+    } catch (err) {
+      console.error("Fetch error", err);
+      const last = messagesEl.querySelector(".msg.bot:last-of-type");
+      if (last && /Thinking/.test(last.innerHTML)) last.remove();
+      addWarning("⚠️ Network error. Try again later.");
     }
   }
 
-  form.addEventListener("submit", (e) => {
-    e.preventDefault();
-    const text = input.value.trim();
-    if (text) sendPrompt(text);
+  // hook send events
+  btn.addEventListener("click", () => sendQuestion(input.value));
+  input.addEventListener("keydown", (e) => {
+    if (e.key === "Enter") {
+      sendQuestion(input.value);
+    }
   });
 
-  bubble("bot", "<strong>Hi, I'm Chem-Ed Genius 🧪</strong><br>Ask me about molecules, reactions, or visualize 3D structures!");
+  // show a welcome message
+  addBotMsg("Hi, I'm Chem-Ed Genius 🧪 — ask me about molecules, reactions, or visualize 3D structures!");
 })();
