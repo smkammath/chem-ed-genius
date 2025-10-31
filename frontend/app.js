@@ -10,12 +10,11 @@
     div.innerHTML = msg;
     convo.appendChild(div);
     convo.scrollTop = convo.scrollHeight;
-    return div;
   };
 
   async function sendPrompt(prompt) {
     append("user", prompt);
-    const bot = append("bot", "<i>Thinking...</i>");
+    const thinking = append("bot", "<i>Thinking...</i>");
     send.disabled = true;
 
     try {
@@ -25,17 +24,11 @@
         body: JSON.stringify({ prompt }),
       });
       const data = await res.json();
-      bot.remove();
-
-      if (!data.ok) {
-        append("bot", `⚠️ ${data.error || "Server error"}`);
-      } else {
-        const html = data.reply.replace(/\n/g, "<br>");
-        const newBubble = append("bot", html);
-      }
-    } catch (err) {
-      bot.remove();
-      append("bot", "❌ Connection error. Try again.");
+      thinking.remove();
+      append("bot", data.ok ? data.reply.replace(/\n/g, "<br>") : `⚠️ ${data.error}`);
+    } catch (e) {
+      thinking.remove();
+      append("bot", "❌ Connection failed. Try again.");
     } finally {
       send.disabled = false;
       input.value = "";
@@ -44,14 +37,13 @@
 
   window.open3D = (mol) => {
     const clean = mol.replace(/[^A-Za-z0-9]/g, "");
-    if (!clean) return alert("Invalid molecule name!");
+    if (!clean) return alert("Invalid molecule name");
     window.open(`https://molview.org/?q=${encodeURIComponent(clean)}`, "_blank");
   };
 
   form.addEventListener("submit", (e) => {
     e.preventDefault();
-    const prompt = input.value.trim();
-    if (!prompt) return;
-    sendPrompt(prompt);
+    const val = input.value.trim();
+    if (val) sendPrompt(val);
   });
 })();
