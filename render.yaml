@@ -1,18 +1,19 @@
 services:
   - type: web
-    name: chem-ed-genius
-    env: docker
-    region: singapore
-    plan: free
+    name: chem-ed-genius-backend
+    env: node
     rootDir: backend
-    dockerfilePath: backend/Dockerfile
-    dockerContext: .
-    autoDeploy: true
+    buildCommand: "npm install"
+    startCommand: "npm start"
     envVars:
       - key: OPENAI_API_KEY
         sync: false
-      - key: NODE_ENV
-        value: production
-      - key: PORT
-        value: 3000
-    healthCheckPath: /healthz
+      - key: RENDER_ORIGIN
+        value: https://chem-ed-genius-frontend.onrender.com
+
+  - type: web
+    name: chem-ed-genius-frontend
+    env: static
+    rootDir: frontend
+    buildCommand: ""
+    staticPublishPath: .
