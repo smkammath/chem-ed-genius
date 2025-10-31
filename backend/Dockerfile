@@ -5,19 +5,21 @@ FROM node:20-bullseye-slim
 
 WORKDIR /app
 
-# install minimal tools for downloading and unzipping
+# Install minimal tools for downloading and unzipping frontend
 RUN apt-get update && apt-get install -y --no-install-recommends \
     curl unzip ca-certificates \
  && rm -rf /var/lib/apt/lists/*
 
-# copy backend package files and install only production dependencies
+# Copy backend package files first for dependency caching
 COPY package*.json ./
+
+# Install production dependencies
 RUN npm install --production
 
-# copy backend source files
+# Copy backend source files (includes server.js, embeddings.js, etc.)
 COPY . .
 
-# --- Fetch frontend from GitHub and extract ---
+# --- Fetch frontend from GitHub and extract into /app/frontend ---
 ARG REPO=smkammath/chem-ed-genius
 ARG BRANCH=main
 ENV REPO_ZIP=https://github.com/${REPO}/archive/refs/heads/${BRANCH}.zip
@@ -36,7 +38,8 @@ RUN mkdir -p /tmp/repo \
     fi \
  && rm -rf /tmp/repo /tmp/repo.zip
 
-# expose port and start
-ENV PORT=3000
+# --- Expose correct Render port and start server ---
+ENV PORT=10000
 EXPOSE ${PORT}
+
 CMD ["node", "server.js"]
