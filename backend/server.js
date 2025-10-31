@@ -1,10 +1,10 @@
-// ✅ backend/server.js (final production-stable version)
-import express from "express";
-import cors from "cors";
-import bodyParser from "body-parser";
-import dotenv from "dotenv";
-import fetch from "node-fetch"; // <-- critical fix
-import OpenAI from "openai";
+// ✅ backend/server.js — CommonJS version for Render + Node 20
+const express = require("express");
+const cors = require("cors");
+const bodyParser = require("body-parser");
+const dotenv = require("dotenv");
+const fetch = (...args) => import("node-fetch").then(({ default: fetch }) => fetch(...args));
+const OpenAI = require("openai");
 
 dotenv.config();
 const app = express();
@@ -23,7 +23,6 @@ app.get("/", (req, res) => {
   res.send("✅ Chem-Ed Genius backend is live!");
 });
 
-// Chat API endpoint
 app.post("/api/chat", async (req, res) => {
   try {
     const { question } = req.body;
@@ -31,7 +30,6 @@ app.post("/api/chat", async (req, res) => {
       return res.status(400).json({ ok: false, error: "Missing 'question' field." });
     }
 
-    // Detect if the query involves molecule visualization
     const moleculeMatch = question.match(/show\s+3d\s+structure\s+of\s+([A-Za-z0-9]+)/i);
     const show3d = !!moleculeMatch;
     const molQuery = moleculeMatch ? moleculeMatch[1] : null;
