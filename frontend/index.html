@@ -1,29 +1,36 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Chem-Ed Genius 🧪</title>
-    <link rel="stylesheet" href="styles.css" />
-  </head>
-  <body>
-    <header>
-      <h1>Chem-Ed Genius 🧪</h1>
-      <p>Explain. Visualize. Ace the exam — chemistry only.</p>
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Chem-Ed Genius</title>
+
+  <!-- MathJax as you asked -->
+  <script id="MathJax-script" async
+    src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js">
+  </script>
+
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <div id="app">
+    <header class="site-header">
+      <h1>Chem-Ed Genius <span class="emoji">🧪</span></h1>
+      <p class="subtitle">Explain. Visualize. Ace the exam — chemistry only.</p>
     </header>
 
-    <main class="chat-box">
-      <div id="conversation"></div>
+    <main class="center-wrap">
+      <div id="card" class="glass-card">
+        <div id="conversation" class="conversation" aria-live="polite"></div>
 
-      <form id="askForm">
-        <input
-          id="promptInput"
-          placeholder="Ask a chemistry question (e.g., 'Show 3D of CH3OH')"
-        />
-        <button id="sendButton">Send</button>
-      </form>
+        <form id="askForm" class="ask-form" autocomplete="off">
+          <input id="promptInput" placeholder="Ask a chemistry question (e.g., 'Explain CH3OH with 3D')" />
+          <button id="sendButton" type="submit">Send</button>
+        </form>
+      </div>
     </main>
+  </div>
 
-    <script src="app.js"></script>
-  </body>
+  <script src="app.js"></script>
+</body>
 </html>
