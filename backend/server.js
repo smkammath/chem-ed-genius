@@ -1,138 +1,129 @@
-// ==============================
-// ✅ CHEM-ED GENIUS FINAL BACKEND
-// ==============================
+// ====================================
+// ✅ FINAL BACKEND for Chem-Ed Genius
+// Render + OpenAI + MolView Safe
+// ====================================
 
 import express from "express";
-import cors from "cors";
 import fetch from "node-fetch";
+import cors from "cors";
 
 const app = express();
 app.use(express.json());
 
-// ====== CORS for Render ======
-const allowedOrigin = process.env.RENDER_ORIGIN || "*";
+const PORT = process.env.PORT || 10000;
+const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
+const MODEL_NAME = process.env.MODEL_NAME || "gpt-5-thinking-mini";
+const RENDER_ORIGIN = process.env.RENDER_ORIGIN || "*";
+
+// --- Allow frontend ---
 app.use(
   cors({
-    origin: allowedOrigin,
+    origin: RENDER_ORIGIN,
     methods: ["GET", "POST", "OPTIONS"],
     credentials: true,
   })
 );
 
-const PORT = process.env.PORT || 10000;
+// --- Health check ---
+app.get("/ping", (req, res) => res.json({ ok: true }));
+app.get("/healthz", (req, res) => res.sendStatus(200));
 
-// ===================================
-// 🧠 Helper: Determine query category
-// ===================================
-function detectQueryType(prompt) {
-  const lower = prompt.toLowerCase();
-
-  if (/\b(reaction|reacts with|product|equation|combine|reaction between)\b/.test(lower))
-    return "reaction";
-  if (/\b(structure|molecule|geometry|bond|hybridization|3d|model|shape)\b/.test(lower))
-    return "molecule";
-  return "concept";
-}
-
-// ===================================
-// 🧪 Helper: Extract chemical keywords
-// ===================================
-function extractChemicals(prompt) {
-  const cleaned = prompt
-    .replace(
-      /explain|show|reaction|structure|molecular|of|between|and|3d|model|the|what|is|chemical/gi,
-      ""
-    )
+// --- Utility to clean molecule names ---
+function extractMolecule(prompt) {
+  return prompt
+    .replace(/(give|show|explain|structure|molecular|3d|of|the|for|model|visualize|view|draw)/gi, "")
     .trim()
-    .replace(/\s{2,}/g, " ");
-  return cleaned || "unknown";
+    .replace(/\s+/g, " ")
+    .toLowerCase();
 }
 
-// ===================================
-// ⚗️ Reaction database (expandable)
-// ===================================
-const reactionDB = {
+// --- Chemical reaction examples ---
+const reactions = {
   "copper and hcl": {
-    equation: "Cu + 2HCl → CuCl₂ + H₂↑",
-    explanation:
-      "Copper reacts with hydrochloric acid to produce copper(II) chloride and hydrogen gas. This is a single displacement reaction where hydrogen is released as a gas.",
+    eq: "Cu + 2HCl → CuCl₂ + H₂↑",
+    info: "Copper reacts with hydrochloric acid forming copper(II) chloride and hydrogen gas.",
   },
   "zinc and hcl": {
-    equation: "Zn + 2HCl → ZnCl₂ + H₂↑",
-    explanation:
-      "Zinc reacts vigorously with hydrochloric acid forming zinc chloride and hydrogen gas.",
+    eq: "Zn + 2HCl → ZnCl₂ + H₂↑",
+    info: "Zinc reacts with hydrochloric acid to form zinc chloride and hydrogen gas.",
   },
   "iron and hcl": {
-    equation: "Fe + 2HCl → FeCl₂ + H₂↑",
-    explanation:
-      "Iron reacts slowly with dilute hydrochloric acid forming ferrous chloride and hydrogen gas.",
+    eq: "Fe + 2HCl → FeCl₂ + H₂↑",
+    info: "Iron slowly reacts with dilute HCl forming ferrous chloride and hydrogen gas.",
   },
   "sodium and water": {
-    equation: "2Na + 2H₂O → 2NaOH + H₂↑",
-    explanation:
-      "Sodium reacts violently with water to form sodium hydroxide and hydrogen gas. It’s a highly exothermic reaction.",
-  },
-  "magnesium and hcl": {
-    equation: "Mg + 2HCl → MgCl₂ + H₂↑",
-    explanation:
-      "Magnesium reacts with hydrochloric acid to produce magnesium chloride and hydrogen gas.",
+    eq: "2Na + 2H₂O → 2NaOH + H₂↑",
+    info: "Sodium reacts violently with water forming sodium hydroxide and hydrogen gas.",
   },
 };
 
-// ===================================
-// 💬 MAIN CHAT ROUTE
-// ===================================
+// --- Main Chat Endpoint ---
 app.post("/api/chat", async (req, res) => {
+  const { prompt } = req.body || {};
+  if (!prompt || typeof prompt !== "string")
+    return res.status(400).json({ ok: false, error: "Missing or invalid prompt" });
+
+  const query = prompt.toLowerCase();
+  let reply = "";
+
   try {
-    const prompt = req.body.prompt;
-    if (!prompt) return res.status(400).json({ error: "Missing prompt" });
-
-    const queryType = detectQueryType(prompt);
-    const subject = extractChemicals(prompt);
-    let replyText = "";
-
-    if (queryType === "reaction") {
-      // --- Handle chemical reactions ---
-      const reaction = reactionDB[subject.toLowerCase()];
-      if (reaction) {
-        replyText = `
-          **Chemical Reaction:**<br>${reaction.equation}<br><br>
-          **Explanation:** ${reaction.explanation}
-        `;
+    // Reaction intent
+    if (query.includes("reaction")) {
+      const key = Object.keys(reactions).find((r) => query.includes(r));
+      if (key) {
+        const r = reactions[key];
+        reply = `**Reaction:** ${r.eq}<br><br>**Explanation:** ${r.info}`;
       } else {
-        replyText = `
-          **Explanation:** I couldn’t find this exact reaction in my database. However, reactions like "${subject}" generally follow predictable patterns — such as combination, decomposition, displacement, or neutralization — depending on the reactants involved.
-        `;
+        reply = `**Explanation:** I couldn’t find that exact reaction. However, reactions like "${prompt}" typically follow patterns like combination, displacement, or decomposition depending on the reactants.`;
       }
-    } else if (queryType === "molecule") {
-      // --- Handle molecular structure queries ---
-      replyText = `
-        **Explanation:** The molecule **${subject}** involves covalent bonding and exhibits characteristic molecular geometry. It typically follows valence bond and hybridization principles.
-      `;
+    }
+    // Molecular structure intent
+    else if (/structure|molecule|geometry|3d|bond|model/.test(query)) {
+      const mol = extractMolecule(prompt);
+      reply = `**Explanation:** The molecule **${mol}** involves covalent bonding and exhibits characteristic molecular geometry following valence bond and hybridization principles.<br><br><button class="view3d" onclick="open3D('${mol}')">View 3D</button>`;
+    }
+    // Generic chemistry explanation
+    else {
+      const data = await fetch("https://api.openai.com/v1/chat/completions", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${OPENAI_API_KEY}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          model: MODEL_NAME,
+          messages: [
+            {
+              role: "system",
+              content: "You are Chem-Ed Genius, a concise but detailed chemistry explainer.",
+            },
+            { role: "user", content: prompt },
+          ],
+          temperature: 0.3,
+          max_tokens: 300,
+        }),
+      });
 
-      // Add 3D visualization button
-      replyText += `
-        <br><br><button class="view3d" onclick="show3DModel('${subject}')">View 3D</button>
-      `;
-    } else {
-      // --- Handle conceptual chemistry queries ---
-      replyText = `
-        **Explanation:** The topic **${subject}** can be understood using fundamental chemistry principles such as atomic structure, electron configuration, bonding, and periodic properties.
-      `;
+      const json = await data.json();
+      const text = json?.choices?.[0]?.message?.content || null;
+      reply = text
+        ? text
+        : "⚠️ The AI didn’t return a valid answer. Try rephrasing your question.";
     }
 
-    res.json({ text: replyText });
-  } catch (error) {
-    console.error("❌ Server Error:", error);
-    res.status(500).json({ error: "Internal server error" });
+    res.json({ ok: true, reply });
+  } catch (err) {
+    console.error("❌ Backend error:", err);
+    res.status(500).json({
+      ok: false,
+      error: "Internal server error while processing your request.",
+    });
   }
 });
 
-// ===================================
-// 🩺 Health Check Routes (Render Safe)
-// ===================================
-app.get("/", (req, res) => res.json({ status: "✅ Chem-Ed Genius backend is live" }));
-app.get("/healthz", (req, res) => res.sendStatus(200));
+// --- Default route ---
+app.get("/", (_, res) => res.json({ status: "✅ Chem-Ed Genius backend active" }));
 
-// ===================================
-app.listen(PORT, () => console.log(`🚀 Server running on port ${PORT}`));
+app.listen(PORT, () =>
+  console.log(`🚀 Chem-Ed Genius running on port ${PORT}`)
+);
