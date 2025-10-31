@@ -1,4 +1,4 @@
-/* ====== GLOBAL RESET ====== */
+/* ===== RESET ===== */
 * {
   margin: 0;
   padding: 0;
@@ -6,73 +6,82 @@
   font-family: "Segoe UI", Arial, sans-serif;
 }
 
-/* ====== BODY & BACKGROUND ====== */
+/* ===== BODY WITH LAB BACKGROUND ===== */
 body {
-  background: radial-gradient(circle at top, #0f2f3f, #00191f);
-  color: #f0f0f0;
+  background: url("chem.jpg") no-repeat center center fixed;
+  background-size: cover;
   display: flex;
   flex-direction: column;
   align-items: center;
-  min-height: 100vh;
+  justify-content: flex-start;
+  height: 100vh;
   overflow: hidden;
 }
 
-/* ====== HEADER ====== */
+/* ===== HEADER ===== */
 h1 {
-  margin-top: 25px;
-  font-size: 2.2rem;
+  margin-top: 20px;
+  font-size: 2.5rem;
+  color: #00ffc8;
+  text-shadow: 0 0 10px rgba(0, 255, 200, 0.6), 0 0 20px rgba(0, 255, 255, 0.3);
   font-weight: 700;
-  color: #00c4cc;
-  text-shadow: 0 0 10px rgba(0, 255, 255, 0.3);
-  letter-spacing: 1px;
+  text-align: center;
 }
 
-/* ====== MAIN CHAT CONTAINER ====== */
+.subtitle {
+  color: #e0f7f9;
+  font-size: 1rem;
+  margin-top: 5px;
+  text-shadow: 0 0 6px rgba(0, 255, 255, 0.4);
+  text-align: center;
+}
+
+/* ===== CHAT WINDOW ===== */
 #chat-window {
-  background: rgba(255, 255, 255, 0.1);
-  backdrop-filter: blur(12px);
+  background: rgba(255, 255, 255, 0.15);
+  backdrop-filter: blur(15px);
   border-radius: 20px;
-  box-shadow: 0 0 25px rgba(0, 255, 255, 0.15);
   width: 85%;
   max-width: 800px;
   height: 70vh;
-  margin: 20px auto;
+  margin-top: 30px;
   padding: 20px;
   overflow-y: auto;
+  box-shadow: 0 0 20px rgba(0, 255, 255, 0.2);
   display: flex;
   flex-direction: column;
   gap: 12px;
   scroll-behavior: smooth;
 }
 
-/* ====== SCROLLBAR STYLING ====== */
+/* Scrollbar style */
 #chat-window::-webkit-scrollbar {
   width: 8px;
 }
 #chat-window::-webkit-scrollbar-thumb {
-  background: rgba(0, 255, 255, 0.3);
-  border-radius: 8px;
+  background: rgba(0, 255, 255, 0.4);
+  border-radius: 6px;
 }
 #chat-window::-webkit-scrollbar-thumb:hover {
-  background: rgba(0, 255, 255, 0.6);
+  background: rgba(0, 255, 255, 0.7);
 }
 
-/* ====== MESSAGE BUBBLES ====== */
+/* ===== MESSAGES ===== */
 .user-message {
   align-self: flex-end;
-  background: #00a0a5;
+  background: rgba(0, 190, 200, 0.9);
   color: white;
   border-radius: 15px 15px 0 15px;
   padding: 12px 16px;
   max-width: 75%;
   word-wrap: break-word;
-  box-shadow: 0 2px 6px rgba(0, 255, 255, 0.15);
+  box-shadow: 0 0 8px rgba(0, 255, 255, 0.2);
   animation: fadeIn 0.3s ease-in-out;
 }
 
 .bot-message {
   align-self: flex-start;
-  background: rgba(255, 255, 255, 0.9);
+  background: rgba(255, 255, 255, 0.95);
   color: #002a33;
   border-radius: 15px 15px 15px 0;
   padding: 12px 16px;
@@ -82,26 +91,18 @@ h1 {
   animation: fadeIn 0.3s ease-in-out;
 }
 
-/* ====== MESSAGE TEXT & MATH ====== */
-.bot-message p,
-.user-message p {
-  margin: 4px 0;
-  line-height: 1.5;
-}
-
-/* ====== 3D VIEWER CONTAINER ====== */
+/* ===== 3D VIEWER ===== */
 .viewer-wrapper {
   display: flex;
   justify-content: center;
   align-items: center;
-  background: rgba(240, 255, 255, 0.9);
+  background: rgba(245, 255, 255, 0.95);
   border-radius: 15px;
   margin-top: 10px;
   padding: 10px;
-  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.15);
+  box-shadow: 0 0 15px rgba(0, 255, 255, 0.15);
   width: 100%;
-  overflow: hidden;
-  animation: fadeIn 0.6s ease-in-out;
+  animation: fadeIn 0.5s ease-in-out;
 }
 
 .viewer3d-container {
@@ -111,9 +112,9 @@ h1 {
   overflow: hidden;
 }
 
-/* ====== VIEW 3D BUTTON ====== */
+/* ===== VIEW 3D BUTTON ===== */
 .view3d-btn {
-  background-color: #007b7f;
+  background-color: #008b8b;
   color: white;
   border: none;
   border-radius: 8px;
@@ -122,24 +123,21 @@ h1 {
   cursor: pointer;
   font-weight: 500;
   transition: all 0.3s ease;
-  box-shadow: 0 2px 5px rgba(0, 128, 128, 0.2);
 }
 
 .view3d-btn:hover {
-  background-color: #00a9ad;
+  background-color: #00c4cc;
   transform: scale(1.05);
 }
 
 .view3d-btn:disabled {
-  background-color: #ccc;
-  color: #666;
+  background-color: #b0b0b0;
   cursor: not-allowed;
-  transform: none;
 }
 
-/* ====== INPUT AREA ====== */
+/* ===== INPUT AREA ===== */
 #user-input {
-  width: 75%;
+  width: 70%;
   max-width: 600px;
   padding: 12px 15px;
   border-radius: 8px;
@@ -147,7 +145,8 @@ h1 {
   outline: none;
   font-size: 1rem;
   color: #00363f;
-  margin-bottom: 20px;
+  background-color: #ffffff;
+  box-shadow: 0 2px 8px rgba(0, 255, 255, 0.15);
 }
 
 #send-btn {
@@ -168,14 +167,14 @@ h1 {
 }
 
 #send-btn:active {
-  transform: scale(0.98);
+  transform: scale(0.97);
 }
 
-/* ====== ANIMATIONS ====== */
+/* ===== ANIMATION ===== */
 @keyframes fadeIn {
   from {
     opacity: 0;
-    transform: translateY(8px);
+    transform: translateY(6px);
   }
   to {
     opacity: 1;
@@ -183,17 +182,11 @@ h1 {
   }
 }
 
-/* ====== RESPONSIVE DESIGN ====== */
+/* ===== RESPONSIVE ===== */
 @media (max-width: 768px) {
   #chat-window {
-    width: 95%;
+    width: 90%;
     height: 75vh;
-  }
-
-  .user-message,
-  .bot-message {
-    max-width: 90%;
-    font-size: 0.95rem;
   }
 
   .viewer3d-container {
@@ -206,5 +199,9 @@ h1 {
 
   #send-btn {
     padding: 10px 18px;
+  }
+
+  h1 {
+    font-size: 1.8rem;
   }
 }
