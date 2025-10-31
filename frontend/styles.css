@@ -1,207 +1,192 @@
 /* ===== RESET ===== */
-* {
-  margin: 0;
-  padding: 0;
-  box-sizing: border-box;
-  font-family: "Segoe UI", Arial, sans-serif;
-}
+* { box-sizing: border-box; margin: 0; padding: 0; font-family: "Segoe UI", Arial, sans-serif; }
 
-/* ===== BODY WITH LAB BACKGROUND ===== */
+/* ===== BACKGROUND + GRADIENT ===== */
 body {
-  background: url("chem.jpg") no-repeat center center fixed;
-  background-size: cover;
+  min-height: 100vh;
+  background:
+    linear-gradient(180deg, rgba(0,18,22,0.55) 0%, rgba(0,18,22,0.65) 100%),
+    url("./chem.jpg") center/cover fixed no-repeat;
   display: flex;
   flex-direction: column;
   align-items: center;
-  justify-content: flex-start;
-  height: 100vh;
-  overflow: hidden;
+  color: #e9ffff;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
 /* ===== HEADER ===== */
-h1 {
-  margin-top: 20px;
-  font-size: 2.5rem;
-  color: #00ffc8;
-  text-shadow: 0 0 10px rgba(0, 255, 200, 0.6), 0 0 20px rgba(0, 255, 255, 0.3);
-  font-weight: 700;
+.site-header {
+  margin-top: 28px;
   text-align: center;
+  width: 90%;
+  max-width: 1100px;
 }
-
+.site-header h1 {
+  font-size: 34px;
+  color: #00ffd1;
+  text-shadow: 0 0 18px rgba(0,255,210,0.25), 0 2px 8px rgba(0,0,0,0.35);
+  letter-spacing: 0.6px;
+}
 .subtitle {
-  color: #e0f7f9;
-  font-size: 1rem;
-  margin-top: 5px;
-  text-shadow: 0 0 6px rgba(0, 255, 255, 0.4);
-  text-align: center;
+  margin-top: 6px;
+  color: rgba(230,255,255,0.92);
+  font-size: 14px;
 }
 
-/* ===== CHAT WINDOW ===== */
+/* ===== MAIN LAYOUT ===== */
+.main-area {
+  margin-top: 18px;
+  width: 90%;
+  max-width: 980px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+/* chat window (glass panel) */
 #chat-window {
-  background: rgba(255, 255, 255, 0.15);
-  backdrop-filter: blur(15px);
-  border-radius: 20px;
-  width: 85%;
-  max-width: 800px;
-  height: 70vh;
-  margin-top: 30px;
-  padding: 20px;
+  width: 100%;
+  height: 62vh;
+  max-height: 820px;
+  background: rgba(255,255,255,0.12);
+  border-radius: 18px;
+  padding: 22px;
   overflow-y: auto;
-  box-shadow: 0 0 20px rgba(0, 255, 255, 0.2);
+  backdrop-filter: blur(12px);
+  box-shadow: 0 12px 40px rgba(0,0,0,0.45), inset 0 0 70px rgba(0,255,230,0.03);
   display: flex;
   flex-direction: column;
   gap: 12px;
-  scroll-behavior: smooth;
 }
 
-/* Scrollbar style */
-#chat-window::-webkit-scrollbar {
-  width: 8px;
+/* messages */
+.message {
+  max-width: 78%;
+  padding: 12px 14px;
+  border-radius: 12px;
+  line-height: 1.45;
+  word-break: break-word;
+  box-shadow: 0 6px 18px rgba(0,0,0,0.12);
 }
-#chat-window::-webkit-scrollbar-thumb {
-  background: rgba(0, 255, 255, 0.4);
-  border-radius: 6px;
-}
-#chat-window::-webkit-scrollbar-thumb:hover {
-  background: rgba(0, 255, 255, 0.7);
-}
-
-/* ===== MESSAGES ===== */
-.user-message {
+.user {
   align-self: flex-end;
-  background: rgba(0, 190, 200, 0.9);
-  color: white;
-  border-radius: 15px 15px 0 15px;
-  padding: 12px 16px;
-  max-width: 75%;
-  word-wrap: break-word;
-  box-shadow: 0 0 8px rgba(0, 255, 255, 0.2);
-  animation: fadeIn 0.3s ease-in-out;
+  background: linear-gradient(180deg,#00b3af,#00e6df);
+  color: #003030;
+  border-radius: 14px 8px 14px 14px;
 }
-
-.bot-message {
+.bot {
   align-self: flex-start;
-  background: rgba(255, 255, 255, 0.95);
-  color: #002a33;
-  border-radius: 15px 15px 15px 0;
-  padding: 12px 16px;
-  max-width: 75%;
-  word-wrap: break-word;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-  animation: fadeIn 0.3s ease-in-out;
+  background: #ffffff;
+  color: #05363a;
+  border-radius: 8px 14px 14px 8px;
 }
 
-/* ===== 3D VIEWER ===== */
-.viewer-wrapper {
+/* small label */
+.msg-meta {
+  font-size: 12px;
+  opacity: 0.85;
+  margin-bottom: 6px;
+}
+
+/* 'View 3D' inline button */
+.view3d-inline {
+  display: inline-block;
+  border: 0;
+  background: #007f7a;
+  color: #fff;
+  padding: 6px 10px;
+  border-radius: 8px;
+  font-weight: 600;
+  margin-left: 8px;
+  cursor: pointer;
+  text-decoration: none;
+  font-size: 13px;
+}
+.view3d-inline:hover { background: #00a6a0; transform: translateY(-1px); }
+
+/* ===== INPUT FORM ===== */
+#chat-form {
+  margin-top: 16px;
+  width: 100%;
   display: flex;
+  gap: 10px;
   justify-content: center;
   align-items: center;
-  background: rgba(245, 255, 255, 0.95);
-  border-radius: 15px;
-  margin-top: 10px;
-  padding: 10px;
-  box-shadow: 0 0 15px rgba(0, 255, 255, 0.15);
-  width: 100%;
-  animation: fadeIn 0.5s ease-in-out;
 }
-
-.viewer3d-container {
-  width: 100%;
-  height: 400px;
-  border-radius: 12px;
-  overflow: hidden;
-}
-
-/* ===== VIEW 3D BUTTON ===== */
-.view3d-btn {
-  background-color: #008b8b;
-  color: white;
-  border: none;
-  border-radius: 8px;
-  padding: 8px 14px;
-  margin-top: 8px;
-  cursor: pointer;
-  font-weight: 500;
-  transition: all 0.3s ease;
-}
-
-.view3d-btn:hover {
-  background-color: #00c4cc;
-  transform: scale(1.05);
-}
-
-.view3d-btn:disabled {
-  background-color: #b0b0b0;
-  cursor: not-allowed;
-}
-
-/* ===== INPUT AREA ===== */
 #user-input {
-  width: 70%;
-  max-width: 600px;
-  padding: 12px 15px;
-  border-radius: 8px;
+  flex: 1;
+  max-width: 820px;
+  padding: 12px 14px;
+  border-radius: 10px;
   border: none;
   outline: none;
-  font-size: 1rem;
+  font-size: 15px;
+  background: rgba(255,255,255,0.95);
   color: #00363f;
-  background-color: #ffffff;
-  box-shadow: 0 2px 8px rgba(0, 255, 255, 0.15);
+  box-shadow: 0 6px 18px rgba(0,0,0,0.12);
 }
-
 #send-btn {
-  padding: 12px 22px;
-  background-color: #00c4cc;
-  color: white;
+  padding: 10px 16px;
+  border-radius: 10px;
   border: none;
-  border-radius: 8px;
+  background: #00a59f;
+  color: white;
+  font-weight: 700;
   cursor: pointer;
-  font-weight: 600;
-  margin-left: 10px;
-  transition: all 0.3s ease;
+}
+#send-btn:hover { transform: translateY(-2px); background: #00e6ea; color: #003432; }
+
+/* ===== 3D VIEWER MODAL ===== */
+.viewer-modal { display: none; position: fixed; inset: 0; z-index: 1200; }
+.viewer-backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(0,0,0,0.45);
+  backdrop-filter: blur(6px);
+}
+.viewer-panel {
+  position: absolute;
+  top: 8%;
+  left: 50%;
+  transform: translateX(-50%);
+  width: min(1100px, 92%);
+  max-height: 80vh;
+  background: #fff;
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: 0 30px 80px rgba(0,0,0,0.5);
+  display: flex;
+  flex-direction: column;
+}
+.viewer-header {
+  display:flex; justify-content:space-between; align-items:center;
+  padding:10px 14px; background:linear-gradient(90deg,#00e6de, #00a6a0);
+  color:#043737; font-weight:700;
+}
+.viewer-close {
+  background: #f44336; color: #fff; border: none; padding: 6px 10px; border-radius: 8px; cursor: pointer;
+}
+.viewer-content {
+  padding: 14px;
+  background: #f7f9fb;
+  overflow: auto;
+  height: calc(80vh - 56px);
 }
 
-#send-btn:hover {
-  background-color: #00e6f6;
-  transform: scale(1.05);
+/* small viewer fallback message */
+.viewer-message { padding: 12px; border-radius: 8px; background: #fff; color: #222; }
+
+/* ===== HELPERS & SMALL DEVICES ===== */
+@media (max-width: 720px) {
+  .site-header h1 { font-size: 22px; }
+  #chat-window { height: 66vh; padding: 16px; }
+  .viewer-panel { top: 6%; width: 96%; }
 }
 
-#send-btn:active {
-  transform: scale(0.97);
+/* subtle fade-in animation */
+@keyframes appear {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: translateY(0); }
 }
-
-/* ===== ANIMATION ===== */
-@keyframes fadeIn {
-  from {
-    opacity: 0;
-    transform: translateY(6px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
-/* ===== RESPONSIVE ===== */
-@media (max-width: 768px) {
-  #chat-window {
-    width: 90%;
-    height: 75vh;
-  }
-
-  .viewer3d-container {
-    height: 300px;
-  }
-
-  #user-input {
-    width: 65%;
-  }
-
-  #send-btn {
-    padding: 10px 18px;
-  }
-
-  h1 {
-    font-size: 1.8rem;
-  }
-}
+.message, .viewer-panel { animation: appear .28s ease both; }
