@@ -1,4 +1,3 @@
-// ✅ Use the full backend URL explicitly
 const API_URL = "https://chem-ed-genius.onrender.com/api/chat";
 
 const chatWindow = document.getElementById("chat-window");
@@ -25,10 +24,6 @@ async function sendMessage() {
       body: JSON.stringify({ prompt: text }),
     });
 
-    if (!res.ok) {
-      throw new Error(`Server responded with status ${res.status}`);
-    }
-
     const data = await res.json();
     chatWindow.removeChild(chatWindow.lastChild);
 
@@ -37,28 +32,22 @@ async function sendMessage() {
       return;
     }
 
-    addMessage("bot", data.answer);
-
-    if (data.visualize3D) {
-      render3D(data.visualize3D);
-    }
+    addMessage("bot", data.answer, data.molecule);
   } catch (err) {
     chatWindow.removeChild(chatWindow.lastChild);
-    console.error("❌ Connection error:", err);
     addMessage("bot", "❌ Server error: Unable to connect to backend.");
   }
 }
 
-function addMessage(sender, text) {
+function addMessage(sender, text, molecule = null) {
   const div = document.createElement("div");
   div.classList.add(sender === "user" ? "user-message" : "bot-message");
 
   if (text.includes("View 3D")) {
-    const parts = text.split("View 3D")[0];
-    div.innerHTML = `${parts}<button class="view3d-btn">View 3D</button>`;
+    const content = text.replace("View 3D", "");
+    div.innerHTML = `${content}<button class="view3d-btn">View 3D</button>`;
     div.querySelector(".view3d-btn").addEventListener("click", () => {
-      const mol = extractMolecule(parts);
-      if (mol) fetch3DStructure(mol);
+      if (molecule) fetch3DStructure(molecule);
     });
   } else {
     div.innerHTML = text;
@@ -69,11 +58,7 @@ function addMessage(sender, text) {
   renderMath();
 }
 
-function extractMolecule(text) {
-  const match = text.match(/[A-Z][a-z]?\d*/g);
-  return match ? match.join("") : null;
-}
-
+// ✅ Fetch and render 3D only when explicitly requested
 async function fetch3DStructure(molecule) {
   addMessage("bot", `Fetching 3D model for ${molecule}...`);
   try {
@@ -81,15 +66,19 @@ async function fetch3DStructure(molecule) {
       `https://pubchem.ncbi.nlm.nih.gov/rest/pug/compound/name/${molecule}/SDF?record_type=3d`
     );
     const sdf = await res.text();
-    render3D(sdf);
+    if (!sdf || sdf.length < 100) throw new Error("Invalid data");
+    render3D(sdf, molecule);
   } catch {
-    addMessage("bot", "❌ Failed to fetch 3D structure.");
+    addMessage("bot", `⚠️ No 3D structure available for ${molecule}.`);
   }
 }
 
-function render3D(sdf) {
+function render3D(sdf, molecule) {
   const viewerDiv = document.createElement("div");
-  viewerDiv.id = "viewer3d";
+  viewerDiv.id = `viewer3d-${molecule}`;
+  viewerDiv.style.width = "100%";
+  viewerDiv.style.height = "400px";
+  viewerDiv.style.marginTop = "10px";
   chatWindow.appendChild(viewerDiv);
 
   const viewer = $3Dmol.createViewer(viewerDiv, { backgroundColor: "white" });
@@ -97,4 +86,8 @@ function render3D(sdf) {
   viewer.setStyle({}, { stick: {}, sphere: { scale: 0.3 } });
   viewer.zoomTo();
   viewer.render();
+}
+
+function renderMath() {
+  if (window.MathJax) MathJax.typesetPromise();
 }
