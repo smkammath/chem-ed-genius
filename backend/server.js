@@ -1,8 +1,3 @@
-// ====================================
-// ✅ FINAL BACKEND for Chem-Ed Genius
-// Render + OpenAI + MolView Safe
-// ====================================
-
 import express from "express";
 import fetch from "node-fetch";
 import cors from "cors";
@@ -15,7 +10,6 @@ const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
 const MODEL_NAME = process.env.MODEL_NAME || "gpt-5-thinking-mini";
 const RENDER_ORIGIN = process.env.RENDER_ORIGIN || "*";
 
-// --- Allow frontend ---
 app.use(
   cors({
     origin: RENDER_ORIGIN,
@@ -24,20 +18,16 @@ app.use(
   })
 );
 
-// --- Health check ---
-app.get("/ping", (req, res) => res.json({ ok: true }));
-app.get("/healthz", (req, res) => res.sendStatus(200));
+app.get("/ping", (_, res) => res.json({ ok: true }));
+app.get("/healthz", (_, res) => res.send("✅ Backend is healthy"));
 
-// --- Utility to clean molecule names ---
 function extractMolecule(prompt) {
   return prompt
-    .replace(/(give|show|explain|structure|molecular|3d|of|the|for|model|visualize|view|draw)/gi, "")
+    .replace(/(give|show|draw|explain|3d|structure|model|of|the|molecular)/gi, "")
     .trim()
-    .replace(/\s+/g, " ")
-    .toLowerCase();
+    .replace(/\s+/g, " ");
 }
 
-// --- Chemical reaction examples ---
 const reactions = {
   "copper and hcl": {
     eq: "Cu + 2HCl → CuCl₂ + H₂↑",
@@ -51,43 +41,38 @@ const reactions = {
     eq: "Fe + 2HCl → FeCl₂ + H₂↑",
     info: "Iron slowly reacts with dilute HCl forming ferrous chloride and hydrogen gas.",
   },
-  "sodium and water": {
-    eq: "2Na + 2H₂O → 2NaOH + H₂↑",
-    info: "Sodium reacts violently with water forming sodium hydroxide and hydrogen gas.",
-  },
 };
 
-// --- Main Chat Endpoint ---
 app.post("/api/chat", async (req, res) => {
   const { prompt } = req.body || {};
-  if (!prompt || typeof prompt !== "string")
-    return res.status(400).json({ ok: false, error: "Missing or invalid prompt" });
+  if (!prompt) return res.status(400).json({ ok: false, error: "Missing prompt" });
 
-  const query = prompt.toLowerCase();
+  const q = prompt.toLowerCase();
   let reply = "";
 
   try {
-    // Reaction intent
-    if (query.includes("reaction")) {
-      const key = Object.keys(reactions).find((r) => query.includes(r));
+    // Reaction-based
+    if (q.includes("reaction")) {
+      const key = Object.keys(reactions).find((r) => q.includes(r));
       if (key) {
         const r = reactions[key];
         reply = `**Reaction:** ${r.eq}<br><br>**Explanation:** ${r.info}`;
       } else {
-        reply = `**Explanation:** I couldn’t find that exact reaction. However, reactions like "${prompt}" typically follow patterns like combination, displacement, or decomposition depending on the reactants.`;
+        reply =
+          "**Explanation:** I couldn’t find that exact reaction, but it likely involves standard chemical behavior such as combination, displacement, or neutralization.";
       }
     }
-    // Molecular structure intent
-    else if (/structure|molecule|geometry|3d|bond|model/.test(query)) {
+    // Structure-based
+    else if (/structure|molecule|geometry|bond|3d|model/.test(q)) {
       const mol = extractMolecule(prompt);
-      reply = `**Explanation:** The molecule **${mol}** involves covalent bonding and exhibits characteristic molecular geometry following valence bond and hybridization principles.<br><br><button class="view3d" onclick="open3D('${mol}')">View 3D</button>`;
+      reply = `**Explanation:** The molecule **${mol}** involves covalent bonding and exhibits characteristic molecular geometry.<br><br><button class="view3d" onclick="open3D('${mol}')">View 3D</button>`;
     }
-    // Generic chemistry explanation
+    // General chemistry prompt
     else {
-      const data = await fetch("https://api.openai.com/v1/chat/completions", {
+      const apiRes = await fetch("https://api.openai.com/v1/chat/completions", {
         method: "POST",
         headers: {
-          Authorization: `Bearer ${OPENAI_API_KEY}`,
+          "Authorization": `Bearer ${OPENAI_API_KEY}`,
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
@@ -95,35 +80,27 @@ app.post("/api/chat", async (req, res) => {
           messages: [
             {
               role: "system",
-              content: "You are Chem-Ed Genius, a concise but detailed chemistry explainer.",
+              content: "You are Chem-Ed Genius, a concise chemistry explainer.",
             },
             { role: "user", content: prompt },
           ],
-          temperature: 0.3,
+          temperature: 0.4,
           max_tokens: 300,
         }),
       });
 
-      const json = await data.json();
-      const text = json?.choices?.[0]?.message?.content || null;
-      reply = text
-        ? text
-        : "⚠️ The AI didn’t return a valid answer. Try rephrasing your question.";
+      const data = await apiRes.json();
+      reply =
+        data?.choices?.[0]?.message?.content ||
+        "⚠️ AI response unavailable. Try again.";
     }
 
     res.json({ ok: true, reply });
   } catch (err) {
-    console.error("❌ Backend error:", err);
-    res.status(500).json({
-      ok: false,
-      error: "Internal server error while processing your request.",
-    });
+    console.error("Server error:", err);
+    res.status(500).json({ ok: false, error: "Internal error" });
   }
 });
 
-// --- Default route ---
-app.get("/", (_, res) => res.json({ status: "✅ Chem-Ed Genius backend active" }));
-
-app.listen(PORT, () =>
-  console.log(`🚀 Chem-Ed Genius running on port ${PORT}`)
-);
+app.get("/", (_, res) => res.json({ status: "✅ Chem-Ed Genius active" }));
+app.listen(PORT, () => console.log(`🚀 Backend on port ${PORT}`));
