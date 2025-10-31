@@ -1,15 +1,20 @@
-import express from "express";
-import fetch from "node-fetch";
-import cors from "cors";
+// backend/server.js
+// CommonJS so it runs with default Node + package.json unchanged
+
+const path = require("path");
+const express = require("express");
+const cors = require("cors");
 
 const app = express();
 app.use(express.json());
 
+// ENV
 const PORT = process.env.PORT || 10000;
-const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
+const OPENAI_API_KEY = process.env.OPENAI_API_KEY || "";
 const MODEL_NAME = process.env.MODEL_NAME || "gpt-5-thinking-mini";
 const RENDER_ORIGIN = process.env.RENDER_ORIGIN || "*";
 
+// CORS - allow your frontend origin (set in Render env)
 app.use(
   cors({
     origin: RENDER_ORIGIN,
@@ -18,89 +23,132 @@ app.use(
   })
 );
 
-app.get("/ping", (_, res) => res.json({ ok: true }));
-app.get("/healthz", (_, res) => res.send("✅ Backend is healthy"));
+// Serve frontend static files (copied into /app/frontend by Dockerfile)
+const frontendPath = path.join(__dirname, "frontend");
+app.use(express.static(frontendPath));
 
-function extractMolecule(prompt) {
-  return prompt
-    .replace(/(give|show|draw|explain|3d|structure|model|of|the|molecular)/gi, "")
-    .trim()
-    .replace(/\s+/g, " ");
+// Simple health
+app.get("/healthz", (req, res) => res.send("OK"));
+
+// Utility: sanitize prompt
+function safeText(s) {
+  if (!s) return "";
+  return String(s).trim();
 }
 
-const reactions = {
+function userAsked3D(prompt) {
+  if (!prompt) return false;
+  const q = prompt.toLowerCase();
+  return /\b(3d|3-d|view 3d|show 3d|show the 3d|view3d|view 3-d)\b/.test(q);
+}
+
+// Small built-in reaction DB to answer simple reaction requests instantly
+const reactionsDB = {
   "copper and hcl": {
     eq: "Cu + 2HCl → CuCl₂ + H₂↑",
-    info: "Copper reacts with hydrochloric acid forming copper(II) chloride and hydrogen gas.",
+    info: "Copper reacts with hydrochloric acid to form copper(II) chloride and hydrogen gas (evolution of H₂).",
   },
   "zinc and hcl": {
     eq: "Zn + 2HCl → ZnCl₂ + H₂↑",
-    info: "Zinc reacts with hydrochloric acid to form zinc chloride and hydrogen gas.",
+    info: "Zinc reacts with hydrochloric acid producing zinc chloride and hydrogen gas.",
   },
   "iron and hcl": {
     eq: "Fe + 2HCl → FeCl₂ + H₂↑",
-    info: "Iron slowly reacts with dilute HCl forming ferrous chloride and hydrogen gas.",
+    info: "Iron reacts with dilute hydrochloric acid to form ferrous chloride and hydrogen gas (slowly).",
   },
 };
 
+// Main API: /api/chat
 app.post("/api/chat", async (req, res) => {
-  const { prompt } = req.body || {};
-  if (!prompt) return res.status(400).json({ ok: false, error: "Missing prompt" });
-
-  const q = prompt.toLowerCase();
-  let reply = "";
-
   try {
-    // Reaction-based
-    if (q.includes("reaction")) {
-      const key = Object.keys(reactions).find((r) => q.includes(r));
-      if (key) {
-        const r = reactions[key];
-        reply = `**Reaction:** ${r.eq}<br><br>**Explanation:** ${r.info}`;
-      } else {
-        reply =
-          "**Explanation:** I couldn’t find that exact reaction, but it likely involves standard chemical behavior such as combination, displacement, or neutralization.";
-      }
+    const raw = safeText(req.body?.prompt || "");
+    if (!raw) return res.status(400).json({ ok: false, error: "Missing prompt" });
+
+    const q = raw.toLowerCase();
+
+    // If it's a reaction request and we have a quick DB hit:
+    const reactionKey = Object.keys(reactionsDB).find((k) => q.includes(k));
+    if (q.includes("reaction") && reactionKey) {
+      const r = reactionsDB[reactionKey];
+      const html = `**Reaction:** ${r.eq}<br><br>**Explanation:** ${r.info}`;
+      return res.json({ ok: true, reply: html, requested3D: false });
     }
-    // Structure-based
-    else if (/structure|molecule|geometry|bond|3d|model/.test(q)) {
-      const mol = extractMolecule(prompt);
-      reply = `**Explanation:** The molecule **${mol}** involves covalent bonding and exhibits characteristic molecular geometry.<br><br><button class="view3d" onclick="open3D('${mol}')">View 3D</button>`;
+
+    // If user explicitly wants 3D for a molecule:
+    if (userAsked3D(q) || /\b(view 3d|show 3d|3d structure|3-d structure)\b/.test(q)) {
+      // try to extract a short molecule token (best effort): take last words after 'of'
+      let mol = raw;
+      const ofIdx = raw.toLowerCase().lastIndexOf(" of ");
+      if (ofIdx !== -1) mol = raw.slice(ofIdx + 4).trim();
+      // fallback to whole prompt cleaned
+      mol = mol.split("?")[0].split(".")[0].trim();
+      if (!mol) mol = raw;
+
+      // Return a reply with a View 3D button; frontend will attach open3D()
+      const html = `**Explanation:** The molecule <strong>${mol}</strong> can be visualized in 3D. <br><br><button class="view3d" data-mol="${encodeURIComponent(
+        mol
+      )}">View 3D</button>`;
+      return res.json({ ok: true, reply: html, requested3D: true, mol: mol });
     }
-    // General chemistry prompt
-    else {
-      const apiRes = await fetch("https://api.openai.com/v1/chat/completions", {
-        method: "POST",
-        headers: {
-          "Authorization": `Bearer ${OPENAI_API_KEY}`,
-          "Content-Type": "application/json",
+
+    // Otherwise: call OpenAI Chat Completion (if API key present). If no key, give a fallback safe reply.
+    if (!OPENAI_API_KEY) {
+      const fallback = `**Explanation:** I don't have an OpenAI key configured on the server. Provide OPENAI_API_KEY in env to enable AI answers. Meanwhile: ${escapeHtml(
+        raw.slice(0, 200)
+      )}`;
+      return res.json({ ok: true, reply: fallback, requested3D: false });
+    }
+
+    // Call OpenAI Chat Completion
+    const payload = {
+      model: MODEL_NAME,
+      messages: [
+        {
+          role: "system",
+          content:
+            "You are 'Chem-Ed Genius' — concise, accurate chemistry explanations. If the user asks to 'show 3D' or 'view 3D', produce a short explanation and include a 'View 3D' button markup (button class 'view3d' and data-mol attribute). Otherwise produce plain explanatory text. Keep answers short (<= 300 tokens).",
         },
-        body: JSON.stringify({
-          model: MODEL_NAME,
-          messages: [
-            {
-              role: "system",
-              content: "You are Chem-Ed Genius, a concise chemistry explainer.",
-            },
-            { role: "user", content: prompt },
-          ],
-          temperature: 0.4,
-          max_tokens: 300,
-        }),
-      });
+        { role: "user", content: raw },
+      ],
+      temperature: 0.2,
+      max_tokens: 350,
+    };
 
-      const data = await apiRes.json();
-      reply =
-        data?.choices?.[0]?.message?.content ||
-        "⚠️ AI response unavailable. Try again.";
-    }
+    const r = await fetch("https://api.openai.com/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${OPENAI_API_KEY}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(payload),
+      timeout: 60_000,
+    });
 
-    res.json({ ok: true, reply });
+    const data = await r.json();
+    const aiText = data?.choices?.[0]?.message?.content || "";
+    // If OpenAI injected a request for a 3D button, we keep as-is; otherwise requested3D = false
+    const has3D = /\b(view 3d|show 3d|<button class="view3d")/i.test(aiText);
+
+    return res.json({ ok: true, reply: aiText, requested3D: has3D });
   } catch (err) {
-    console.error("Server error:", err);
-    res.status(500).json({ ok: false, error: "Internal error" });
+    console.error("API error:", err);
+    return res.status(500).json({ ok: false, error: "Server error" });
   }
 });
 
-app.get("/", (_, res) => res.json({ status: "✅ Chem-Ed Genius active" }));
-app.listen(PORT, () => console.log(`🚀 Backend on port ${PORT}`));
+// fallback: serve index
+app.get("*", (req, res) => {
+  res.sendFile(path.join(frontendPath, "index.html"));
+});
+
+// small helper
+function escapeHtml(s) {
+  if (!s) return "";
+  return String(s).replace(/[&<>"']/g, function (m) {
+    return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[m];
+  });
+}
+
+app.listen(PORT, () => {
+  console.log(`✅ Chem-Ed Genius running on port ${PORT}`);
+});
