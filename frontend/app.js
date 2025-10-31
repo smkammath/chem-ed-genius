@@ -43,11 +43,17 @@ function addMessage(sender, text, molecule = null) {
   const div = document.createElement("div");
   div.classList.add(sender === "user" ? "user-message" : "bot-message");
 
+  // 🧠 Handle 3D requests
   if (text.includes("View 3D")) {
     const content = text.replace("View 3D", "");
-    div.innerHTML = `${content}<button class="view3d-btn">View 3D</button>`;
-    div.querySelector(".view3d-btn").addEventListener("click", () => {
-      if (molecule) fetch3DStructure(molecule);
+    div.innerHTML = `${content}<button class="view3d-btn">🔍 View 3D</button>`;
+    const btn = div.querySelector(".view3d-btn");
+
+    btn.addEventListener("click", async () => {
+      if (btn.disabled) return;
+      btn.disabled = true;
+      btn.textContent = "⏳ Loading 3D...";
+      if (molecule) await fetch3DStructure(molecule, btn, div);
     });
   } else {
     div.innerHTML = text;
@@ -58,33 +64,54 @@ function addMessage(sender, text, molecule = null) {
   renderMath();
 }
 
-async function fetch3DStructure(molecule) {
-  addMessage("bot", `Fetching 3D model for ${molecule}...`);
+async function fetch3DStructure(molecule, btn, container) {
+  // Create a loading message element that can be replaced later
+  const loadingMsg = document.createElement("div");
+  loadingMsg.classList.add("bot-message");
+  loadingMsg.textContent = `Fetching 3D model for ${molecule}...`;
+  chatWindow.appendChild(loadingMsg);
+  chatWindow.scrollTop = chatWindow.scrollHeight;
+
   try {
     const res = await fetch(
       `https://pubchem.ncbi.nlm.nih.gov/rest/pug/compound/name/${molecule}/SDF?record_type=3d`
     );
     const sdf = await res.text();
-    if (!sdf || sdf.length < 100) throw new Error("Invalid structure");
-    render3D(sdf, molecule);
-  } catch {
-    addMessage("bot", `⚠️ 3D structure not available for ${molecule}.`);
+
+    if (!sdf || sdf.length < 100) throw new Error("Invalid or missing data");
+
+    // ✅ Replace the loading message with actual 3D model
+    loadingMsg.remove();
+    render3D(sdf, molecule, container);
+
+    btn.textContent = "✅ View Again";
+    btn.disabled = false;
+  } catch (err) {
+    loadingMsg.textContent = `⚠️ 3D structure not available for ${molecule}.`;
+    btn.textContent = "⚠️ Unavailable";
   }
 }
 
-function render3D(sdf, molecule) {
-  const viewerDiv = document.createElement("div");
-  viewerDiv.id = `viewer3d-${molecule}`;
-  viewerDiv.style.width = "100%";
-  viewerDiv.style.height = "400px";
-  viewerDiv.style.marginTop = "10px";
-  chatWindow.appendChild(viewerDiv);
+function render3D(sdf, molecule, container) {
+  // Generate unique ID each time (prevents overwriting old 3D)
+  const uniqueId = `viewer3d-${molecule}-${Date.now()}`;
+  const viewerWrapper = document.createElement("div");
+  viewerWrapper.classList.add("viewer-wrapper");
 
+  const viewerDiv = document.createElement("div");
+  viewerDiv.id = uniqueId;
+  viewerDiv.classList.add("viewer3d-container");
+
+  viewerWrapper.appendChild(viewerDiv);
+  container.appendChild(viewerWrapper);
+
+  // ✅ Create new 3Dmol instance fresh every time
   const viewer = $3Dmol.createViewer(viewerDiv, { backgroundColor: "white" });
   viewer.addModel(sdf, "sdf");
   viewer.setStyle({}, { stick: {}, sphere: { scale: 0.3 } });
   viewer.zoomTo();
   viewer.render();
+  viewer.zoom(1.1, 500);
 }
 
 function renderMath() {
