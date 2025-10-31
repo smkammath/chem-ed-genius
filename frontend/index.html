@@ -3,40 +3,27 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Chem-Ed Genius</title>
+    <title>Chem-Ed Genius 🧪</title>
     <link rel="stylesheet" href="styles.css" />
-    <script
-      id="MathJax-script"
-      async
-      src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"
-    ></script>
   </head>
   <body>
-    <div class="container">
-      <h1 class="title">Chem-Ed Genius 🧪</h1>
-      <p class="subtitle">Explain. Visualize. Ace the exam — chemistry only.</p>
+    <header>
+      <h1>Chem-Ed Genius 🧪</h1>
+      <p>Explain. Visualize. Ace the exam — chemistry only.</p>
+    </header>
 
-      <div id="chat-box" class="chat-box"></div>
+    <main class="chat-box">
+      <div id="conversation"></div>
 
-      <div class="input-area">
+      <form id="askForm">
         <input
-          id="user-input"
-          type="text"
-          placeholder="Ask a chemistry question (e.g. 'Explain CH3OH with 3D')"
+          id="promptInput"
+          placeholder="Ask a chemistry question (e.g., 'Show 3D of CH3OH')"
         />
-        <button id="send-btn">Send</button>
-      </div>
-    </div>
+        <button id="sendButton">Send</button>
+      </form>
+    </main>
 
     <script src="app.js"></script>
-    <script>
-      function show3DModel(molecule) {
-        const url = `https://embed.molview.org/v1/?mode=balls&smiles=${encodeURIComponent(
-          molecule
-        )}`;
-        const popup = window.open(url, "_blank");
-        if (!popup) alert("Please allow pop-ups to view 3D models.");
-      }
-    </script>
   </body>
 </html>
