@@ -1,6 +1,6 @@
 {
   "name": "chem-ed-genius-backend",
-  "version": "1.0.4",
+  "version": "1.0.5",
   "description": "Backend for Chem-Ed Genius",
   "main": "server.js",
   "type": "module",
