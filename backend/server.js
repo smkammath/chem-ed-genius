@@ -12,14 +12,26 @@ const PORT = process.env.PORT || 10000;
 app.use(cors({ origin: process.env.RENDER_ORIGIN || "*" }));
 app.use(bodyParser.json());
 
-app.get("/", (req, res) => res.send("✅ Chem-Ed Genius backend is live."));
+app.get("/", (req, res) => res.send("✅ Chem-Ed Genius backend live."));
 
+// Helper function: Convert chemical name/formula → PubChem SMILES
+async function getSmiles(molecule) {
+  try {
+    const resp = await fetch(`https://pubchem.ncbi.nlm.nih.gov/rest/pug/compound/name/${encodeURIComponent(molecule)}/property/CanonicalSMILES/JSON`);
+    const data = await resp.json();
+    return data?.PropertyTable?.Properties?.[0]?.CanonicalSMILES || null;
+  } catch {
+    return null;
+  }
+}
+
+// --- Chat Endpoint ---
 app.post("/api/chat", async (req, res) => {
   try {
     const question = req.body?.question?.trim();
     if (!question) return res.status(400).json({ ok: false, error: "Missing 'question'." });
 
-    // Call OpenAI API
+    // Call OpenAI
     const openaiRes = await fetch("https://api.openai.com/v1/chat/completions", {
       method: "POST",
       headers: {
@@ -32,7 +44,7 @@ app.post("/api/chat", async (req, res) => {
           {
             role: "system",
             content:
-              "You are Chem-Ed Genius, a chemistry tutor AI. Answer with accuracy and clarity. If asked for 3D, provide molecular info."
+              "You are Chem-Ed Genius, a chemistry AI. Explain reactions, molecular structures, and 3D geometry clearly and accurately."
           },
           { role: "user", content: question }
         ]
@@ -42,18 +54,21 @@ app.post("/api/chat", async (req, res) => {
     const data = await openaiRes.json();
     const aiAnswer = data?.choices?.[0]?.message?.content?.trim() || "I couldn’t process that question.";
 
-    // Detect molecular query for 3D rendering
-    const show3d =
-      /(show|display|structure|geometry|3d|visualize|model)/i.test(question) &&
-      /[A-Z][a-z]?\d*/.test(question);
-    const molMatch = question.match(/[A-Z][a-z]?\d*/g);
-    const molQuery = show3d && molMatch ? molMatch.join("") : null;
+    // Detect molecular query
+    const show3d = /(show|structure|geometry|3d|visualize|model)/i.test(question);
+    const match = question.match(/[A-Z][a-z]?\d*/g);
+    const molQuery = match ? match.join("") : null;
+
+    let smiles = null;
+    if (show3d && molQuery) {
+      smiles = await getSmiles(molQuery);
+    }
 
     res.json({
       ok: true,
       answer: aiAnswer,
-      show3d,
-      molQuery
+      show3d: !!(show3d && smiles),
+      molQuery: smiles || null
     });
   } catch (err) {
     console.error("❌ Error:", err);
