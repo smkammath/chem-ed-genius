@@ -22,10 +22,10 @@ function addMessage(text, type = "user") {
   chatBox.scrollTop = chatBox.scrollHeight;
 }
 
-function addMolViewEmbed(molecule) {
+function addMolViewEmbed(smiles) {
   const iframe = document.createElement("iframe");
   iframe.classList.add("molview-embed");
-  iframe.src = `https://embed.molview.org/v1/?mode=balls&smiles=${encodeURIComponent(molecule)}`;
+  iframe.src = `https://embed.molview.org/v1/?mode=balls&smiles=${encodeURIComponent(smiles)}`;
   chatBox.appendChild(iframe);
   chatBox.scrollTop = chatBox.scrollHeight;
 }
